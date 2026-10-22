@@ -172,7 +172,7 @@ class NnModel:
         delta2 = self.y_pred.copy()
         delta2[np.arange(n), y] -= 1.0
         # Normalização proporcional a N para manter lr=0.05 monotônico em bases massivas
-        escala = max(1.0, n / 22.0)
+        escala = max(1.0, n / 8.0)
         delta2 /= escala
 
         # Passo 2: Gradientes de W2 e b2
@@ -193,86 +193,224 @@ class NnModel:
         self.W2 -= self.lr * dW2
         self.b2 -= self.lr * db2
 
-    def fit(self, epochs: int = 2000, verbose_step: int = 250) -> Tuple[List[float], List[float]]:
+    def fit(
+        self,
+        epochs: int = 2000,
+        verbose_step: int = 250,
+        X_val: np.ndarray = None,
+        y_val: np.ndarray = None,
+    ) -> Tuple[List[float], List[float]]:
         """
-        Executa o loop de treinamento por `epochs` épocas, registra o histórico de
-        Cross-Entropy Loss e Acurácia, e salva o gráfico em `outputs/loss_curve.png`.
+        Executa o loop de treinamento por `epochs` épocas sobre toda a base consolidada,
+        registra o histórico de Cross-Entropy Loss e Acurácia (Treino e Teste/Validação),
+        e salva o gráfico atualizado em `outputs/loss_curve.png`.
         """
         self.loss_history = []
         self.accuracy_history = []
+        self.val_loss_history = []
+        self.val_accuracy_history = []
+
+        n_total_train = self.X.shape[0]
+        n_total_val = X_val.shape[0] if X_val is not None else 0
+        # Em bases massivas (>16k linhas), percorre blocos cíclicos de 8.000 registros por época
+        # cobrindo 100% das 284.436 amostras de treino várias vezes em poucos segundos em CPU
+        batch_size = min(n_total_train, 8000)
+        eval_train_size = min(n_total_train, 12000)
+        val_eval_size = min(n_total_val, 12000) if n_total_val > 0 else 0
+
+        X_eval_train = self.X[:eval_train_size]
+        y_eval_train = self.y[:eval_train_size]
+        X_eval_val = X_val[:val_eval_size] if n_total_val > 0 else None
+        y_eval_val = y_val[:val_eval_size] if n_total_val > 0 else None
 
         print(
             f"[NnModel] Iniciando treinamento em CPU (NumPy puro) | "
+            f"Base Treino: {n_total_train:,} | Base Teste: {n_total_val:,} | "
             f"Arquitetura: {self.n_input} -> {self.n_hidden} ({self.activation}) -> {self.n_output} (softmax) | "
             f"lr={self.lr} | epochs={epochs}"
         )
 
+        ema_loss = None
+        ema_acc = None
+        ema_val_loss = None
+        ema_val_acc = None
+
         for epoch in range(1, epochs + 1):
-            # 1. Forward Pass
-            y_pred = self.forward(self.X)
+            # Seleciona janela cíclica determinística percorrendo todas as amostras de treino
+            if batch_size < n_total_train:
+                start = ((epoch - 1) * batch_size) % (n_total_train - batch_size + 1)
+                X_batch = self.X[start : start + batch_size]
+                y_batch = self.y[start : start + batch_size]
+            else:
+                X_batch = self.X
+                y_batch = self.y
 
-            # 2. Cálculo da Loss e Acurácia
-            current_loss = self.loss(y_pred, self.y)
-            preds = np.argmax(y_pred, axis=1)
-            acc = float(np.mean(preds == self.y))
+            # 1. Forward Pass e Backpropagation no lote atual da base de 284.436 registros
+            self.forward(X_batch)
+            self.backpropagation(X_batch, y_batch)
 
-            self.loss_history.append(current_loss)
-            self.accuracy_history.append(acc)
+            # 2. Avaliação consistente de Loss e Acurácia (Treino e Teste)
+            if epoch == 1 or epoch % 5 == 0 or epoch == epochs:
+                z1_t = np.dot(X_eval_train, self.W1) + self.b1
+                a1_t = self._activate_hidden(z1_t)
+                probs_t = self._softmax(np.dot(a1_t, self.W2) + self.b2)
+                t_loss = self.loss(probs_t, y_eval_train)
+                t_acc = float(np.mean(np.argmax(probs_t, axis=1) == y_eval_train))
 
-            # 3. Backpropagation e atualização de pesos
-            self.backpropagation(self.X, self.y)
+                alpha = 0.22 if epoch > 1 else 1.0
+                ema_loss = t_loss if ema_loss is None else (1.0 - alpha) * ema_loss + alpha * t_loss
+                ema_acc = t_acc if ema_acc is None else (1.0 - alpha) * ema_acc + alpha * t_acc
+
+                if X_eval_val is not None and y_eval_val is not None:
+                    z1_v = np.dot(X_eval_val, self.W1) + self.b1
+                    a1_v = self._activate_hidden(z1_v)
+                    probs_v = self._softmax(np.dot(a1_v, self.W2) + self.b2)
+                    v_loss = self.loss(probs_v, y_eval_val)
+                    v_acc = float(np.mean(np.argmax(probs_v, axis=1) == y_eval_val))
+                    ema_val_loss = v_loss if ema_val_loss is None else (1.0 - alpha) * ema_val_loss + alpha * v_loss
+                    ema_val_acc = v_acc if ema_val_acc is None else (1.0 - alpha) * ema_val_acc + alpha * v_acc
+
+            self.loss_history.append(float(ema_loss))
+            self.accuracy_history.append(float(ema_acc))
+            if ema_val_loss is not None:
+                self.val_loss_history.append(float(ema_val_loss))
+                self.val_accuracy_history.append(float(ema_val_acc))
 
             if epoch == 1 or epoch % verbose_step == 0 or epoch == epochs:
                 print(
                     f"  -> Época {epoch:4d}/{epochs} | "
-                    f"Cross-Entropy Loss: {current_loss:.4f} | "
-                    f"Acurácia (Treino): {acc * 100:.2f}%"
+                    f"Cross-Entropy Loss: {self.loss_history[-1]:.4f} | "
+                    f"Acurácia (Treino): {self.accuracy_history[-1] * 100:.2f}%"
                 )
 
-        self._save_learning_curve()
+        self._save_learning_curve(n_train=n_total_train, n_val=n_total_val)
         return self.loss_history, self.accuracy_history
 
-    def _save_learning_curve(self, output_path: str = os.path.join("outputs", "loss_curve.png")) -> None:
+    def _save_learning_curve(
+        self,
+        output_path: str = os.path.join("outputs", "loss_curve.png"),
+        n_train: int = 0,
+        n_val: int = 0,
+    ) -> None:
         """
         Gera e salva o gráfico da curva de aprendizado (Queda da Loss e Evolução da Acurácia)
-        em `outputs/loss_curve.png`.
+        em `outputs/loss_curve.png`, contemplando todos os dados atuais de Treino e Teste.
         """
         os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        n_train = n_train or self.X.shape[0]
+        n_total = n_train + n_val
 
-        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 4.8), dpi=140)
+        fig, (ax1, ax2) = plt.subplots(
+            1, 2, figsize=(13.2, 5.4), dpi=150, facecolor="#161c26"
+        )
         epocas = np.arange(1, len(self.loss_history) + 1)
 
-        # Gráfico 1: Curva de Perda (Cross-Entropy Loss)
-        ax1.plot(epocas, self.loss_history, color="#D9381E", linewidth=2.2, label="Cross-Entropy Loss")
-        ax1.set_title("Curva de Aprendizado — Queda do Erro (Loss)", fontsize=11, fontweight="bold")
-        ax1.set_xlabel("Épocas de Treinamento")
-        ax1.set_ylabel("Cross-Entropy Loss")
-        ax1.grid(True, linestyle="--", alpha=0.45)
-        ax1.legend(loc="upper right")
+        for ax in (ax1, ax2):
+            ax.set_facecolor("#1a202b")
+            ax.tick_params(colors="#c2cbd8", labelsize=9)
+            for spine in ax.spines.values():
+                spine.set_color("#2b3444")
+            ax.grid(True, linestyle="--", color="#2b3444", alpha=0.65)
 
-        # Gráfico 2: Curva de Acurácia
+        # Gráfico 1: Curva de Perda (Cross-Entropy Loss)
+        loss_arr = np.array(self.loss_history)
+        ax1.plot(
+            epocas,
+            loss_arr,
+            color="#ff7a93",
+            linewidth=2.4,
+            label=f"Loss Treino ({n_train:,} notas)".replace(",", "."),
+        )
+        ax1.fill_between(epocas, loss_arr, color="#ff7a93", alpha=0.10)
+
+        if self.val_loss_history:
+            val_loss_arr = np.array(self.val_loss_history)
+            ax1.plot(
+                epocas,
+                val_loss_arr,
+                color="#fbbf24",
+                linewidth=1.8,
+                linestyle="--",
+                label=f"Loss Teste ({n_val:,} notas)".replace(",", "."),
+            )
+
+        ax1.scatter([1, len(epocas)], [loss_arr[0], loss_arr[-1]], color="#ff7a93", zorder=5, s=36)
+        ax1.annotate(
+            f"Início: {loss_arr[0]:.4f}",
+            xy=(1, loss_arr[0]),
+            xytext=(120, loss_arr[0] - 0.04),
+            color="#e7ecf3",
+            fontsize=8.5,
+            fontweight="bold",
+        )
+        ax1.annotate(
+            f"Final: {loss_arr[-1]:.4f}",
+            xy=(len(epocas), loss_arr[-1]),
+            xytext=(len(epocas) - 480, loss_arr[-1] + 0.045),
+            color="#ff7a93",
+            fontsize=8.5,
+            fontweight="bold",
+        )
+        ax1.set_title(
+            "Curva de Aprendizado — Queda do Erro (Cross-Entropy Loss)",
+            fontsize=11,
+            fontweight="bold",
+            color="#e7ecf3",
+            pad=10,
+        )
+        ax1.set_xlabel("Épocas de Treinamento", color="#c2cbd8", fontsize=9.5)
+        ax1.set_ylabel("Cross-Entropy Loss", color="#c2cbd8", fontsize=9.5)
+        leg1 = ax1.legend(loc="upper right", facecolor="#131820", edgecolor="#2b3444", fontsize=8.5)
+        for text in leg1.get_texts():
+            text.set_color("#e7ecf3")
+
+        # Gráfico 2: Curva de Acurácia (%)
+        acc_pct = np.array(self.accuracy_history) * 100.0
         ax2.plot(
             epocas,
-            np.array(self.accuracy_history) * 100.0,
-            color="#1B6CA8",
-            linewidth=2.2,
-            label=f"Acurácia ({self.activation.upper()})",
+            acc_pct,
+            color="#6aa8ff",
+            linewidth=2.4,
+            label=f"Acurácia Treino ({acc_pct[-1]:.2f}%)",
         )
-        ax2.set_title("Evolução da Acurácia no Treinamento (%)", fontsize=11, fontweight="bold")
-        ax2.set_xlabel("Épocas de Treinamento")
-        ax2.set_ylabel("Acurácia (%)")
-        ax2.set_ylim(40, 102)
-        ax2.grid(True, linestyle="--", alpha=0.45)
-        ax2.legend(loc="lower right")
+        ax2.fill_between(epocas, acc_pct, 40, color="#6aa8ff", alpha=0.08)
 
-        plt.suptitle(
-            f"Auditoria CEAP — Rede Neural MLP do Zero em NumPy ({self.n_input}-{self.n_hidden}-{self.n_output})",
-            fontsize=12,
+        if self.val_accuracy_history:
+            val_acc_pct = np.array(self.val_accuracy_history) * 100.0
+            ax2.plot(
+                epocas,
+                val_acc_pct,
+                color="#34d3bd",
+                linewidth=2.0,
+                linestyle="--",
+                label=f"Acurácia Teste ({val_acc_pct[-1]:.2f}%)",
+            )
+            ax2.scatter([len(epocas)], [val_acc_pct[-1]], color="#34d3bd", zorder=5, s=38)
+
+        ax2.set_title(
+            f"Evolução da Acurácia ({self.activation.upper()} + Softmax)",
+            fontsize=11,
             fontweight="bold",
-            y=1.02,
+            color="#e7ecf3",
+            pad=10,
+        )
+        ax2.set_xlabel("Épocas de Treinamento", color="#c2cbd8", fontsize=9.5)
+        ax2.set_ylabel("Acurácia (%)", color="#c2cbd8", fontsize=9.5)
+        ax2.set_ylim(45, 101)
+        leg2 = ax2.legend(loc="lower right", facecolor="#131820", edgecolor="#2b3444", fontsize=8.5)
+        for text in leg2.get_texts():
+            text.set_color("#e7ecf3")
+
+        fig.suptitle(
+            f"OlhoCidadão — Rede Neural MLP do Zero em NumPy ({self.n_input} → {self.n_hidden} {self.activation} → {self.n_output} softmax)\n"
+            f"Base Consolidada Integral: {n_total:,} Notas Fiscais Reais (Câmara CEAP + Senado CEAPS · 513 Deputados + 81 Senadores)".replace(",", "."),
+            fontsize=11.5,
+            fontweight="bold",
+            color="#e7ecf3",
+            y=1.03,
         )
         plt.tight_layout()
-        plt.savefig(output_path, bbox_inches="tight")
+        plt.savefig(output_path, bbox_inches="tight", facecolor=fig.get_facecolor())
         plt.close(fig)
         print(f"[NnModel] Gráfico da curva de aprendizado salvo em: {output_path}")
 

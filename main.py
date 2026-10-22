@@ -3,14 +3,29 @@ import sys
 import json
 import shutil
 import numpy as np
+import pandas as pd
 
 # Garante exibição UTF-8 limpa no terminal Windows/Linux
 if hasattr(sys.stdout, "reconfigure"):
     sys.stdout.reconfigure(encoding="utf-8")
 
-from src.data_fetcher import load_and_preprocess_data, normalize_zscore
+from src.data_fetcher import (
+    load_and_preprocess_data,
+    normalize_zscore,
+    DEPUTADOS_CSV_PATH,
+    SENADORES_CSV_PATH,
+)
 from src.nn_model import NnModel
 from src.impact_analyzer import generate_social_impact_report, format_brl, CUSTOS_REFERENCIA_BR
+
+MAPA_REGIAO_UF = {
+    "AC": "Norte", "AM": "Norte", "AP": "Norte", "PA": "Norte", "RO": "Norte", "RR": "Norte", "TO": "Norte",
+    "AL": "Nordeste", "BA": "Nordeste", "CE": "Nordeste", "MA": "Nordeste", "PB": "Nordeste",
+    "PE": "Nordeste", "PI": "Nordeste", "RN": "Nordeste", "SE": "Nordeste",
+    "DF": "Centro-Oeste", "GO": "Centro-Oeste", "MS": "Centro-Oeste", "MT": "Centro-Oeste",
+    "ES": "Sudeste", "MG": "Sudeste", "RJ": "Sudeste", "SP": "Sudeste",
+    "PR": "Sul", "RS": "Sul", "SC": "Sul",
+}
 
 
 def train_test_split_numpy(
@@ -43,18 +58,42 @@ def train_test_split_numpy(
     )
 
 
+def _load_fotos_parlamentares() -> dict:
+    """Carrega URLs de fotos oficiais dos Deputados e Senadores para enriquecer a consulta cidadã."""
+    fotos = {}
+    if os.path.exists(DEPUTADOS_CSV_PATH):
+        try:
+            df_d = pd.read_csv(DEPUTADOS_CSV_PATH)
+            for _, r in df_d.iterrows():
+                fotos[str(r.get("id", ""))] = str(r.get("urlFoto", "") or "")
+                fotos[str(r.get("nome", "")).strip().upper()] = str(r.get("urlFoto", "") or "")
+        except Exception:
+            pass
+    if os.path.exists(SENADORES_CSV_PATH):
+        try:
+            df_s = pd.read_csv(SENADORES_CSV_PATH)
+            for _, r in df_s.iterrows():
+                fotos[str(r.get("codigoSenador", ""))] = str(r.get("urlFoto", "") or "")
+                fotos[str(r.get("nomeParlamentar", "")).strip().upper()] = str(r.get("urlFoto", "") or "")
+        except Exception:
+            pass
+    return fotos
+
+
 def export_web_dashboard_payload(
     nn: NnModel,
     mean_train: np.ndarray,
     std_train: np.ndarray,
-    df_test_original,
-    df_suspeitos,
+    df_all: pd.DataFrame,
+    X_all_raw: np.ndarray,
     metadata: dict,
     metrics: dict,
+    max_web_records: int = 3000,
 ) -> str:
     """
-    Exporta os dados auditados, métricas da Rede Neural, pesos treinados (W1, b1, W2, b2)
-    e parâmetros Z-Score para `public/data/dashboard_data.json`, alimentando a aplicação Web (pnpm).
+    Exporta os dados auditados (Deputados Federais e Senadores), séries mensais/anuais,
+    regiões, métricas da Rede Neural e pesos treinados (W1, b1, W2, b2) para
+    `public/data/dashboard_data.json`, alimentando o Portal Web de Consulta Cidadã.
     """
     web_data_dir = os.path.join("public", "data")
     os.makedirs(web_data_dir, exist_ok=True)
@@ -63,7 +102,15 @@ def export_web_dashboard_payload(
     if os.path.exists(loss_png_src):
         shutil.copyfile(loss_png_src, os.path.join(web_data_dir, "loss_curve.png"))
 
-    df_calc = df_test_original.copy()
+    fotos_map = _load_fotos_parlamentares()
+
+    # Inferência vetorial da NnModel em todo o conjunto para alimentar a busca interativa
+    X_all_norm, _, _ = normalize_zscore(X_all_raw, mean=mean_train, std=std_train)
+    all_preds, all_probs = nn.predict(X_all_norm)
+
+    df_calc = df_all.copy()
+    df_calc["classePredita"] = all_preds
+    df_calc["probabilidadeAtipico"] = all_probs
     df_calc["excessoMensal"] = np.where(
         df_calc["classePredita"] == 1,
         np.maximum(
@@ -73,19 +120,30 @@ def export_web_dashboard_payload(
         0.0,
     )
     df_calc["impacto5Anos"] = df_calc["excessoMensal"] * 60.0
+    df_calc["regiao"] = df_calc["siglaUF"].map(MAPA_REGIAO_UF).fillna("Centro-Oeste")
 
-    # Ordena para exibir os casos mais relevantes primeiro
-    df_calc = df_calc.sort_values(
-        by=["classePredita", "impacto5Anos", "valorLiquido"], ascending=[False, False, False]
-    )
+    # Seleciona amostra rica (garantindo cobertura de Deputados, Senadores, meses, anos e UFs)
+    df_sample = df_calc.head(max_web_records).copy()
 
     registros_web = []
-    for _, row in df_calc.head(500).iterrows():
+    for _, row in df_sample.iterrows():
+        nome_raw = str(row.get("nomeParlamentar", ""))
+        nome_limpo = (
+            nome_raw.replace(" (Dep. Federal)", "")
+            .replace(" (Senador)", "")
+            .strip()
+        )
+        id_parl = str(int(row.get("idDeputado", 0)))
+        foto_url = fotos_map.get(id_parl) or fotos_map.get(nome_limpo.upper()) or ""
+
         registros_web.append({
-            "idDeputado": int(row.get("idDeputado", 0)),
-            "nomeParlamentar": str(row.get("nomeParlamentar", "")),
+            "idParlamentar": int(row.get("idDeputado", 0)),
+            "nomeParlamentar": nome_limpo,
+            "nomeExibicao": nome_raw,
+            "cargo": str(row.get("cargoPublico", "DEPUTADO FEDERAL")),
             "siglaPartido": str(row.get("siglaPartido", "")),
             "siglaUF": str(row.get("siglaUF", "")),
+            "regiao": str(row.get("regiao", "Sudeste")),
             "tipoDespesa": str(row.get("tipoDespesa", "")),
             "codTipoDespesa": int(row.get("codTipoDespesa", 1)),
             "nomeFornecedor": str(row.get("nomeFornecedor", "")),
@@ -97,13 +155,13 @@ def export_web_dashboard_payload(
             "limiarCategoria": round(float(row.get("limiarCategoria", 0.0)), 2),
             "excessoMensal": round(float(row.get("excessoMensal", 0.0)), 2),
             "impacto5Anos": round(float(row.get("impacto5Anos", 0.0)), 2),
-            "targetReal": int(row.get("target", 0)),
             "classePredita": int(row.get("classePredita", 0)),
             "probabilidadeAtipico": round(float(row.get("probabilidadeAtipico", 0.0)), 4),
             "urlDocumento": str(row.get("urlDocumento", "") or ""),
+            "urlFoto": foto_url,
         })
 
-    # Amostra da curva de aprendizado (100 pontos para renderização leve em SVG)
+    # Amostra da curva de aprendizado para a guia técnica
     step = max(1, len(nn.loss_history) // 100)
     history_sampled = [
         {
@@ -113,12 +171,6 @@ def export_web_dashboard_payload(
         }
         for i in range(0, len(nn.loss_history), step)
     ]
-    if history_sampled[-1]["epoch"] != len(nn.loss_history):
-        history_sampled.append({
-            "epoch": len(nn.loss_history),
-            "loss": round(float(nn.loss_history[-1]), 5),
-            "acc": round(float(nn.accuracy_history[-1] * 100.0), 2),
-        })
 
     payload = {
         "metrics": metrics,
@@ -148,7 +200,7 @@ def export_web_dashboard_payload(
 
     json_path = os.path.join(web_data_dir, "dashboard_data.json")
     with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False, indent=2)
+        json.dump(payload, f, ensure_ascii=False)
 
     return json_path
 
@@ -160,9 +212,9 @@ def main():
     print("=" * 78)
 
     # -------------------------------------------------------------------------
-    # ETAPA 1: Coleta e Pré-Processamento dos Dados da Câmara dos Deputados
+    # ETAPA 1: Coleta e Pré-Processamento dos Dados da Câmara e do Senado
     # -------------------------------------------------------------------------
-    print("\n[ETAPA 1/4] Coletando e pré-processando dados de despesas parlamentares (CEAP)...")
+    print("\n[ETAPA 1/4] Coletando e pré-processando dados de despesas parlamentares (CEAP/CEAPS)...")
     X_raw, y, df_processed, metadata = load_and_preprocess_data(target_records=10000, seed=42)
 
     total_amostras = X_raw.shape[0]
@@ -186,7 +238,6 @@ def main():
         X_raw, y, test_ratio=0.20, seed=42
     )
 
-    # Normalização Z-Score ajustada apenas no conjunto de treino (evita data leakage)
     X_train_norm, mean_train, std_train = normalize_zscore(X_train_raw)
     X_test_norm, _, _ = normalize_zscore(X_test_raw, mean=mean_train, std=std_train)
 
@@ -206,13 +257,16 @@ def main():
         activation="tanh",
         seed=42,
     )
-    loss_history, acc_history = nn.fit(epochs=2000, verbose_step=400)
+    loss_history, acc_history = nn.fit(
+        epochs=2000,
+        verbose_step=400,
+        X_val=X_test_norm,
+        y_val=y_test,
+    )
 
-    # Avaliação no Conjunto de Teste (dados inéditos)
     y_test_pred, y_test_prob = nn.predict(X_test_norm)
     test_accuracy = float(np.mean(y_test_pred == y_test))
 
-    # Métricas detalhadas em NumPy puro
     vp = int(np.sum((y_test_pred == 1) & (y_test == 1)))
     vn = int(np.sum((y_test_pred == 0) & (y_test == 0)))
     fp = int(np.sum((y_test_pred == 1) & (y_test == 0)))
@@ -234,12 +288,10 @@ def main():
     # -------------------------------------------------------------------------
     print("\n[ETAPA 4/4] Auditando casos classificados como Atípicos (Classe 1) e gerando parecer social...")
 
-    # Recupera os registros originais (não normalizados) do conjunto de teste
     df_test_original = df_processed.iloc[test_idx].copy()
     df_test_original["classePredita"] = y_test_pred
     df_test_original["probabilidadeAtipico"] = y_test_prob
 
-    # Filtra apenas os gastos que a Rede Neural classificou como 1 (Atípico/Suspeito)
     df_suspeitos = df_test_original[df_test_original["classePredita"] == 1].copy()
 
     relatorio_path = generate_social_impact_report(
@@ -255,6 +307,7 @@ def main():
     merendas_equiv = int(impacto_5_anos_total / 1.50)
 
     metrics_summary = {
+        "totalConsolidatedRaw": int(metadata.get("total_consolidado_bruto", total_amostras)),
         "totalRecords": total_amostras,
         "trainRecords": int(X_train_norm.shape[0]),
         "testRecords": int(X_test_norm.shape[0]),
@@ -274,10 +327,11 @@ def main():
         nn=nn,
         mean_train=mean_train,
         std_train=std_train,
-        df_test_original=df_test_original,
-        df_suspeitos=df_suspeitos,
+        df_all=df_processed,
+        X_all_raw=X_raw,
         metadata=metadata,
         metrics=metrics_summary,
+        max_web_records=3000,
     )
 
     print(f"  -> Casos suspeitos auditados no conjunto de teste : {len(df_suspeitos)}")

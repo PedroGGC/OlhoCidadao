@@ -443,18 +443,18 @@ def load_and_preprocess_data(
         f"{len(df_unificado_total):,} notas fiscais reais disponíveis!"
     )
 
-    # Seleciona amostra estratificada grande (ex: 12.000 notas cobrindo todos os parlamentares,
-    # partidos e UFs) para `raw_despesas_camara.csv` e treinamento vetorial rápido em CPU
+    # Salva amostra estratificada em `raw_despesas_camara.csv` para inspeção rápida no Git,
+    # mas mantém TODAS as 355.546 notas fiscais reais em `df` para o pré-processamento e Rede Neural!
     if len(df_unificado_total) > target_records:
-        # Garante presença tanto de Deputados quanto de Senadores na amostra de treinamento
-        df_raw = df_unificado_total.sample(n=target_records, random_state=seed).reset_index(drop=True)
+        df_raw_sample = df_unificado_total.sample(n=target_records, random_state=seed).reset_index(drop=True)
     else:
-        df_raw = df_unificado_total.copy()
+        df_raw_sample = df_unificado_total.copy()
 
-    df_raw.to_csv(RAW_CSV_PATH, index=False, encoding="utf-8")
-    print(f"[Dados Públicos] Amostra de auditoria salva em: {RAW_CSV_PATH} ({len(df_raw):,} linhas)")
+    df_raw_sample.to_csv(RAW_CSV_PATH, index=False, encoding="utf-8")
+    print(f"[Dados Públicos] Amostra de auditoria salva em: {RAW_CSV_PATH} ({len(df_raw_sample):,} linhas)")
 
-    df = df_raw.copy()
+    # Usa 100% dos dados consolidados atuais (Câmara + Senado) para o modelo e métricas
+    df = df_unificado_total.copy()
 
     # Mapeamento das categorias ordenadas pela mediana de gasto
     medianas_por_cat = df.groupby("tipoDespesa")["valorLiquido"].median().sort_values()
@@ -472,7 +472,7 @@ def load_and_preprocess_data(
     df["mes"] = df["mes"].clip(1, 12).astype(int)
     df["valorLiquido"] = df["valorLiquido"].astype(float)
 
-    # Cálculo da média e desvio padrão por categoria (codTipoDespesa)
+    # Cálculo da média e desvio padrão por categoria (codTipoDespesa) em toda a base
     stats_categoria = {}
     limiares_categoria = {}
 
@@ -511,10 +511,14 @@ def load_and_preprocess_data(
     df["target"] = (df["valorLiquido"] > df["limiarCategoria"]).astype(int)
 
     df = df.sample(frac=1.0, random_state=seed).reset_index(drop=True)
-    df.to_csv(PROCESSED_CSV_PATH, index=False, encoding="utf-8")
-    print(f"[Dados Públicos] Dataset processado salvo em: {PROCESSED_CSV_PATH} ({len(df):,} linhas)")
+    df_proc_sample = df.head(target_records)
+    df_proc_sample.to_csv(PROCESSED_CSV_PATH, index=False, encoding="utf-8")
+    print(
+        f"[Dados Públicos] Base completa em memória: {len(df):,} linhas "
+        f"(amostra exportada em {PROCESSED_CSV_PATH}: {len(df_proc_sample):,} linhas)"
+    )
 
-    # Extração das 5 features numéricas exigidas para a matriz X
+    # Extração das 5 features numéricas exigidas para a matriz X (todas as 355.546 linhas)
     feature_cols = ["valorLiquido", "codTipoDespesa", "mes", "codPartido", "codUF"]
     X = df[feature_cols].to_numpy(dtype=np.float64)
     y = df["target"].to_numpy(dtype=np.int64)
