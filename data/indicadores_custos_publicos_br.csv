@@ -1,0 +1,9 @@
+indicador,descricao,valor_unitario_brl,orgao_fonte,portal_oficial
+merenda_escolar_pnae,Refeição Escolar Básica (PNAE/FNDE),1.5,FNDE / Ministério da Educação (MEC),https://www.gov.br/fnde/pt-br/acesso-a-informacao/acoes-e-programas/programas/pnae
+kit_escolar_aluno,Kit Completo de Material Escolar Anual por Aluno,120.0,FNDE / Atas de Registro de Preços MEC,https://www.gov.br/fnde/pt-br
+computador_escola_publica,Computador Desktop Educacional para Laboratório Público,2800.0,Portal Nacional de Contratações Públicas (PNCP),https://pncp.gov.br/
+consulta_atencao_basica,Consulta Médica em Atenção Primária / Especializada (Custo Médio SUS/Municipal),65.0,Ministério da Saúde / DataSUS (SIGTAP),http://sigtap.datasus.gov.br/
+kit_medicamentos_basicos,Kit Mensal de Medicamentos da Assistência Farmacêutica Básica,45.0,Ministério da Saúde / RENAME - SUS,https://www.gov.br/saude/pt-br/composicao/sectics/daf
+cesta_basica_familiar,Cesta Básica Nacional de Alimentos (Média Capitais),750.0,DIEESE / Pesquisa Nacional da Cesta Básica de Alimentos,https://www.dieese.org.br/analisecestabasica/analiseCestaBasica.html
+salario_minimo,Salário Mínimo Nacional de Referência,1518.0,Governo Federal / Portal da Transparência,https://portaldatransparencia.gov.br/
+equipamento_seguranca_uf,Diária Operacional de Patrulhamento / EPI Policial Estadual,420.0,SENASP / Ministério da Justiça e Segurança Pública,https://www.gov.br/mj/pt-br/assuntos/sua-seguranca/seguranca-publica

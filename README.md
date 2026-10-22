@@ -1,0 +1,142 @@
+# OlhoCidadão — Auditoria Inteligente de Gastos Parlamentares (CEAP)
+
+Sistema híbrido de **Transparência Pública Brasileira** que combina uma **Rede Neural Multilayer Perceptron (MLP) construída 100% do zero em NumPy** com um **Analisador de Impacto Social** (integrado à API do Google Gemini e com motor analítico offline integrado). O projeto roda **100% em CPU local**, sem necessidade de GPU dedicada ou frameworks pesados de Deep Learning.
+
+---
+
+## 1. Alinhamento com os 3 Requisitos da Avaliação Acadêmica
+
+### Requisito 1: Desenvolvimento Base (Rede Neural do Zero em Python/NumPy)
+O arquivo [`src/nn_model.py`](src/nn_model.py) implementa a classe `NnModel` utilizando exclusivamente álgebra linear vetorial em `numpy` (sem `scikit-learn`, `pytorch` ou `tensorflow`), contemplando toda a estrutura clássica da playlist de referência (*"Rede neural do zero em Python"*):
+- `__init__(self, X, y, n_hidden=16, lr=0.05)`: Inicialização dinâmica das matrizes de pesos `W1`, `b1`, `W2` e `b2` via método de Xavier/Glorot.
+- `forward(self, X)`: Propagação direta da camada de entrada para a camada oculta e cálculo de probabilidades na saída via função `softmax` numericamente estável.
+- `loss(self, y_pred)`: Cálculo exato da perda por **Entropia Cruzada Categórica (*Cross-Entropy Loss*)**:
+  $$\mathcal{L}(y, \hat{y}) = -\frac{1}{N} \sum_{i=1}^{N} \log\left(\hat{y}_{i, y_i}\right)$$
+- `backpropagation(self, X, y)`: Cálculo analítico dos gradientes `dW2`, `db2`, `dW1`, `db1` aplicando a Regra da Cadeia e atualização por Gradiente Descendente.
+- `fit(self, epochs=2000)` e `predict(self, X)`: Loop de treinamento completo com exportação automática da curva de aprendizado em `outputs/loss_curve.png`.
+
+### Requisito 2: Escolha do Dataset (Origem Brasil — Câmara dos Deputados / CEAP)
+O módulo [`src/data_fetcher.py`](src/data_fetcher.py) consome dados públicos da **Cota para o Exercício da Atividade Parlamentar (CEAP)** através da API Oficial de Dados Abertos da Câmara dos Deputados (`https://dadosabertos.camara.leg.br/api/v2/deputados`):
+- Coleta despesas reais de deputados federais em exercício (`/deputados/{id}/despesas`) até formar um conjunto de ~920 registros.
+- **Mecanismo de Resiliência Offline/Timeout:** Caso a API da Câmara apresente lentidão ou indisponibilidade, o módulo aciona automaticamente um gerador estatístico fiel aos padrões reais da CEAP (categorias oficiais, partidos, UFs e distribuições reais de notas fiscais em R$) e salva os dados brutos em `data/raw_despesas_camara.csv`.
+- **Rotulagem Estatística (`y`) e Normalização Z-Score:** Calcula a média ($\mu_c$) e o desvio padrão ($\sigma_c$) por categoria de despesa (`codTipoDespesa`). Notas cujo `valorLiquido` ultrapassam $\mu_c + 1.2\sigma_c$ recebem `y = 1` (**Gasto Atípico/Suspeito**); as demais recebem `y = 0` (**Gasto Normal**). Para evitar *overflow* exponencial na rede, aplica-se a normalização Z-Score em NumPy puro:
+  $$X_{\text{norm}} = \frac{X - \mu}{\sigma + 10^{-8}}$$
+
+### Requisito 3: Customização da Arquitetura e da Função de Ativação
+Em relação ao modelo didático clássico de 2 entradas sintéticas (`make_moons`) com ativação sigmoide, foram realizadas duas customizações fundamentais em [`src/nn_model.py`](src/nn_model.py):
+1. **Adequação da Camada de Entrada (5 Features Reais):** A matriz `X` alimenta dinamicamente `n_input = X.shape[1] = 5` neurônios de entrada correspondentes a:
+   1. `valorLiquido` (float em R$)
+   2. `codTipoDespesa` (int mapeado da rubrica da CEAP)
+   3. `mes` (int de 1 a 12)
+   4. `codPartido` (int mapeado da sigla partidária)
+   5. `codUF` (int mapeado da Unidade Federativa do parlamentar)
+2. **Customização da Função de Ativação na Camada Oculta (`np.tanh`):** Substituiu-se a sigmoide padrão pela **Tangente Hiperbólica ($\tanh$)** (com suporte adicional a *Leaky ReLU*):
+   $$a^{(1)} = \tanh\left(z^{(1)}\right) = \frac{e^{z^{(1)}} - e^{-z^{(1)}}}{e^{z^{(1)}} + e^{-z^{(1)}}}$$
+   No método `backpropagation`, a retropropagação do erro aplica a **derivada analítica exata da Tangente Hiperbólica**:
+   $$\frac{\partial \tanh\left(z^{(1)}\right)}{\partial z^{(1)}} = 1 - \left(a^{(1)}\right)^2$$
+   Como a $\tanh$ é centrada em zero no intervalo $(-1, 1)$, ela opera em sinergia direta com a normalização Z-Score, eliminando o problema de *zig-zag* nos gradientes e acelerando a convergência.
+
+---
+
+## 2. Analisador de Impacto Social (`src/impact_analyzer.py`)
+
+Todos os gastos do conjunto de teste classificados como **Classe 1 (Atípicos)** pela Rede Neural são auditados pelo módulo [`src/impact_analyzer.py`](src/impact_analyzer.py):
+- Calcula o excesso mensal frente à média aceitável da categoria e projeta o desperdício acumulado ao longo de **60 meses (5 anos)**.
+- Converte o desperdício projetado em custo de oportunidade social com base em indicadores públicos brasileiros:
+  - **Educação Básica:** Merendas escolares do PNAE (R$ 1,50/refeição), kits escolares completos (R$ 120,00) e computadores para laboratórios públicos (R$ 2.800,00).
+  - **Saúde Pública (SUS):** Consultas médicas de atenção primária (R$ 65,00) e kits de medicamentos da Farmácia Básica (R$ 45,00).
+  - **Segurança e Assistência Social:** Diárias operacionais de patrulhamento estadual (R$ 420,00) e cestas básicas familiares (R$ 750,00).
+- Se a variável de ambiente `GEMINI_API_KEY` estiver configurada, utiliza o SDK `google-genai` para enriquecer o parecer técnico e cidadão; caso contrário, utiliza automaticamente o motor analítico offline, gerando o documento completo em `outputs/relatorio_auditoria.md`.
+
+---
+
+## 3. Estrutura de Arquivos do Projeto
+
+```text
+OlhoCidadão/
+├── data/
+│   ├── cota_parlamentar_camara_completa.csv    # DUMP MASSIVO: 326.304 notas fiscais reais (TODOS os 513 Deputados, 70.4 MB)
+│   ├── despesas_senadores_ceaps_completo.csv   # DUMP MASSIVO: 39.652 notas fiscais reais (TODOS os 81 Senadores, 9.9 MB)
+│   ├── deputados_historico_completo_camara.csv # TODOS os 7.889 Deputados Federais da história do Brasil (1.3 MB)
+│   ├── deputados_federais_camara.csv           # TODOS os 513 Deputados Federais em exercício (API Câmara)
+│   ├── senadores_federais_completo.csv         # TODOS os 81 Senadores da República em exercício (API Senado)
+│   ├── prefeituras_municipios_tesouro_ibge.csv # TODAS as 5.570 Prefeituras Municipais + Estados com CNPJ e população (Tesouro/IBGE)
+│   ├── raw_despesas_camara.csv                 # Amostra estratificada de 10.000 notas reais (Deputados + Senadores)
+│   ├── processed_dataset.csv                   # Dataset de 10.000 linhas codificado e rotulado (y = 0 ou 1)
+│   ├── partidos_politicos_camara.csv           # Tabela oficial de Partidos Políticos
+│   ├── estados_ibge_oficial.csv                # Tabela oficial das 27 UFs e Regiões do Brasil (IBGE)
+│   └── indicadores_custos_publicos_br.csv      # Custos unitários de referência (FNDE/MEC, DataSUS/SIGTAP, DIEESE, SENASP)
+├── src/
+│   ├── __init__.py
+│   ├── data_fetcher.py               # Coleta na API da Câmara, pré-processamento e Z-Score
+│   ├── nn_model.py                   # Rede Neural MLP construída 100% do zero em NumPy (tanh)
+│   └── impact_analyzer.py            # Projeção de 5 anos e geração do parecer de impacto social
+├── outputs/
+│   ├── loss_curve.png                     # Curva de aprendizado (Queda da Loss e Acurácia)
+│   └── relatorio_auditoria.md             # Relatório final de auditoria e custo de oportunidade social
+├── public/
+│   └── data/
+│       ├── dashboard_data.json            # Pesos treinados (W1, b1, W2, b2), Z-Score e notas auditadas para a Web
+│       └── loss_curve.png                 # Gráfico da curva de aprendizado servido na interface Web
+├── web/
+│   ├── app.js                             # Lógica do Dashboard + Inferência MLP (tanh + softmax) no navegador
+│   └── style.css                          # Estilização responsiva com Container Queries e Sticky Headers
+├── index.html                             # Página principal da Aplicação Web (Vite + pnpm)
+├── package.json                           # Configuração do projeto Web gerenciado via pnpm
+├── main.py                                # Orquestrador ponta a ponta do pipeline Python/NumPy
+├── requirements.txt                       # Dependências leves para execução 100% em CPU
+└── README.md                              # Documentação técnica e acadêmica
+```
+
+---
+
+## 4. Como Executar o Projeto (Backend Python + Site Web com `pnpm`)
+
+### Passo 1: Instalar as dependências do Python (Motor da Rede Neural)
+```bash
+pip install -r requirements.txt
+```
+
+### Passo 2: Instalar as dependências Web via `pnpm`
+```bash
+pnpm install
+```
+
+### Passo 3: (Opcional) Configurar chave da API Gemini
+Caso deseje utilizar a geração complementar via IA Generativa do Google Gemini, defina a variável de ambiente `GEMINI_API_KEY` ou crie um arquivo `.env` na raiz:
+```env
+GEMINI_API_KEY=sua_chave_aqui
+```
+*(Se não configurar a chave, o projeto funcionará 100% offline usando o motor analítico matemático embutido).*
+
+### Passo 4: Treinar a Rede Neural e Iniciar o Site Web (`pnpm`)
+
+Você pode rodar o pipeline de treinamento e subir o servidor Web interativo com um único comando `pnpm`:
+```bash
+pnpm start
+```
+
+Ou executar cada etapa separadamente via `pnpm`:
+```bash
+# 1. Coleta dados da Câmara/IBGE, treina a Rede Neural em NumPy e exporta os artefatos Web
+pnpm run train
+
+# 2. Inicia o servidor de desenvolvimento Web (Vite) em http://localhost:5173
+pnpm run dev
+
+# 3. Gera a build de produção otimizada do site na pasta dist/
+pnpm run build
+
+# 4. Visualiza a build de produção localmente
+pnpm run preview
+```
+
+*(Também é possível rodar apenas o pipeline Python diretamente no terminal com `python main.py`).*
+
+### O que você encontrará na Aplicação Web (`pnpm dev`) e em `outputs/`:
+1. **Dashboard Web Interativo (`http://localhost:5173`):**
+   - **Simulador da Rede Neural em Tempo Real:** Executa o *Forward Pass* com os pesos reais treinados (`W1`, `b1`, `W2`, `b2`), normalização Z-Score e ativação `tanh(z)` diretamente no navegador, exibindo as ativações dos 16 neurônios ocultos ao vivo.
+   - **Painel de Custo de Oportunidade Social (5 Anos):** Conversão automática em merendas escolares (PNAE), kits escolares, computadores, consultas no SUS, medicamentos básicos e diárias de segurança.
+   - **Tabela de Notas Fiscais Reais Auditadas:** Filtros por classificação (`Atípico` vs `Normal`), UF e busca textual por deputado, fornecedor ou CNPJ, com link direto para o PDF oficial da nota fiscal no portal da Câmara dos Deputados.
+2. `outputs/loss_curve.png`: Gráfico comprovando a convergência da Rede Neural (`NnModel`).
+3. `outputs/relatorio_auditoria.md`: Relatório detalhado dos gastos atípicos detectados e seu impacto social em 5 anos.

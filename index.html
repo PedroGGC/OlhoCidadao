@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OlhoCidadão — Auditoria Inteligente de Gastos Parlamentares (CEAP)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/web/style.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="container topbar-inner">
+      <div class="brand">
+        <span class="brand-badge" aria-hidden="true">BR</span>
+        <div>
+          <h1 class="brand-title">OlhoCidadão</h1>
+          <p class="brand-subtitle">Auditoria Inteligente da CEAP · Rede Neural MLP do Zero (NumPy) + Impacto Social</p>
+        </div>
+      </div>
+      <nav class="topnav" aria-label="Navegação principal">
+        <a href="#visao-geral" class="nav-link">Métricas MLP</a>
+        <a href="#simulador-mlp" class="nav-link">Simulador Neural</a>
+        <a href="#impacto-social" class="nav-link">Impacto Social (5 Anos)</a>
+        <a href="#auditoria-notas" class="nav-link">Notas Fiscais Auditadas</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="container main-content">
+    <!-- Hero / Status Banner -->
+    <section class="hero-card" id="visao-geral">
+      <div class="hero-text">
+        <div class="pill-group">
+          <span class="status-pill pill-emerald">100% CPU Local · NumPy Puro</span>
+          <span class="status-pill pill-blue">Ativação Customizada: tanh(z)</span>
+          <span class="status-pill pill-amber">Dados Abertos: Câmara dos Deputados (57ª Leg.)</span>
+        </div>
+        <h2>Transparência Pública com Redes Neurais e Custo de Oportunidade Cidadã</h2>
+        <p>
+          Cada nota fiscal da <strong>Cota para o Exercício da Atividade Parlamentar (CEAP)</strong> é normalizada via
+          <em>Z-Score</em> e processada por uma Rede Neural <strong>Multilayer Perceptron (5 → 16 → 2)</strong> construída do zero em Python/NumPy.
+          Os gastos classificados como <strong>Classe 1 (Atípicos)</strong> têm seu excesso projetado para 60 meses (5 anos) e convertido em políticas públicas essenciais.
+        </p>
+      </div>
+
+      <div class="kpi-grid" id="kpi-grid">
+        <article class="kpi-card">
+          <span class="kpi-label">Acurácia no Teste (20%)</span>
+          <strong class="kpi-value" id="kpi-acc">--%</strong>
+          <span class="kpi-meta" id="kpi-recall">Recall Atípicos: --%</span>
+        </article>
+        <article class="kpi-card">
+          <span class="kpi-label">Queda da Cross-Entropy Loss</span>
+          <strong class="kpi-value mono" id="kpi-loss">-- → --</strong>
+          <span class="kpi-meta">2.000 Épocas · lr = 0.05</span>
+        </article>
+        <article class="kpi-card kpi-alert">
+          <span class="kpi-label">Impacto Projetado (5 Anos)</span>
+          <strong class="kpi-value" id="kpi-impacto">R$ --</strong>
+          <span class="kpi-meta" id="kpi-suspeitos">-- notas suspeitas no teste</span>
+        </article>
+        <article class="kpi-card kpi-highlight">
+          <span class="kpi-label">Equivalência em Educação (PNAE)</span>
+          <strong class="kpi-value" id="kpi-merendas">--</strong>
+          <span class="kpi-meta">Merendas escolares a R$ 1,50</span>
+        </article>
+      </div>
+    </section>
+
+    <!-- Simulador Interativo da Rede Neural + Curva de Aprendizado -->
+    <section class="split-grid" id="simulador-mlp">
+      <div class="panel-card">
+        <div class="panel-header">
+          <div>
+            <span class="section-eyebrow">Inferência Vetorial ao Vivo no Navegador</span>
+            <h3>Simulador da Rede Neural <code>NnModel</code> (Pesos Reais Treinados)</h3>
+          </div>
+          <span class="badge-code">f(z) = tanh(z) · f'(a) = 1 - a²</span>
+        </div>
+        <p class="panel-desc">
+          Teste qualquer despesa parlamentar usando as matrizes reais <code>W1</code>, <code>b1</code>, <code>W2</code> e <code>b2</code> exportadas pelo treinamento em NumPy.
+        </p>
+
+        <form id="sim-form" class="sim-form">
+          <div class="form-row">
+            <label for="sim-valor">
+              Valor Líquido da Nota Fiscal (R$)
+              <input type="number" id="sim-valor" step="10" min="10" max="150000" value="9000" required />
+            </label>
+            <label for="sim-categoria">
+              Categoria da Despesa (CEAP)
+              <select id="sim-categoria"></select>
+            </label>
+          </div>
+
+          <div class="form-row form-row-3">
+            <label for="sim-uf">
+              Estado (UF)
+              <select id="sim-uf"></select>
+            </label>
+            <label for="sim-partido">
+              Partido
+              <select id="sim-partido"></select>
+            </label>
+            <label for="sim-mes">
+              Mês de Competência
+              <input type="number" id="sim-mes" min="1" max="12" value="8" required />
+            </label>
+          </div>
+        </form>
+
+        <div class="sim-result-box" id="sim-result-box">
+          <div class="sim-result-header">
+            <div>
+              <span class="sim-status-label">Classificação da Rede Neural:</span>
+              <h4 id="sim-verdict">Calculando...</h4>
+            </div>
+            <div class="sim-prob-wrap">
+              <span class="sim-prob-label">Probabilidade (Softmax Classe 1)</span>
+              <strong class="sim-prob-value mono" id="sim-prob">--%</strong>
+            </div>
+          </div>
+
+          <div class="prob-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="sim-prob-bar-wrap">
+            <div class="prob-bar-fill" id="sim-prob-bar"></div>
+          </div>
+
+          <div class="sim-impact-preview" id="sim-impact-preview"></div>
+
+          <div class="neurons-box">
+            <span class="neurons-title">Ativações dos 16 Neurônios da Camada Oculta <code>a1 = np.tanh(X_norm · W1 + b1)</code>:</span>
+            <div class="neurons-grid" id="neurons-grid"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-card">
+        <div class="panel-header">
+          <div>
+            <span class="section-eyebrow">Convergência em CPU Local</span>
+            <h3>Curva de Aprendizado & Arquitetura Matemática</h3>
+          </div>
+          <span class="badge-code" id="confusion-badge">VP: -- | VN: --</span>
+        </div>
+
+        <figure class="chart-figure">
+          <img src="/data/loss_curve.png" alt="Gráfico da curva de aprendizado mostrando a queda da Cross-Entropy Loss e subida da Acurácia ao longo de 2000 épocas" class="loss-chart-img" />
+          <figcaption>
+            Gráfico gerado em <code>outputs/loss_curve.png</code> durante o treinamento da <code>NnModel</code>.
+          </figcaption>
+        </figure>
+
+        <div class="math-summary">
+          <div class="math-item">
+            <strong>1. Normalização Z-Score (NumPy)</strong>
+            <code>X_norm = (X - mean) / (std + 1e-8)</code>
+          </div>
+          <div class="math-item">
+            <strong>2. Forward Pass (Tangente Hiperbólica + Softmax)</strong>
+            <code>a1 = np.tanh(X · W1 + b1)  |  y_pred = softmax(a1 · W2 + b2)</code>
+          </div>
+          <div class="math-item">
+            <strong>3. Backpropagation com Derivada Exata da tanh</strong>
+            <code>delta1 = (delta2 · W2.T) * (1.0 - np.power(a1, 2))</code>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Custo de Oportunidade Social em 5 Anos -->
+    <section class="panel-card section-block" id="impacto-social">
+      <div class="panel-header">
+        <div>
+          <span class="section-eyebrow">Tradução Orçamentária Cidadã · Horizonte de 60 Meses (5 Anos)</span>
+          <h3>O que o Excesso Detectado pela Rede Neural Financiaria no Brasil</h3>
+        </div>
+        <span class="badge-code">Fontes: FNDE/MEC · DataSUS/SIGTAP · DIEESE · SENASP</span>
+      </div>
+      <div class="impact-cards-grid" id="impact-cards-grid"></div>
+    </section>
+
+    <!-- Tabela Responsiva de Notas Fiscais Auditadas -->
+    <section class="panel-card section-block" id="auditoria-notas">
+      <div class="panel-header">
+        <div>
+          <span class="section-eyebrow">Conjunto de Teste Auditado pela Rede Neural</span>
+          <h3>Notas Fiscais Reais da Câmara dos Deputados (CEAP)</h3>
+        </div>
+        <div class="filter-bar">
+          <select id="filter-status" aria-label="Filtrar por classificação da rede neural">
+            <option value="all">Todas as Classificações</option>
+            <option value="1" selected>Apenas Atípicos / Suspeitos (Classe 1)</option>
+            <option value="0">Apenas Normais (Classe 0)</option>
+          </select>
+          <select id="filter-uf" aria-label="Filtrar por UF">
+            <option value="all">Todas as UFs</option>
+          </select>
+          <input type="search" id="filter-search" placeholder="Buscar deputado, fornecedor ou CNPJ..." aria-label="Buscar parlamentar ou fornecedor" />
+        </div>
+      </div>
+
+      <!-- Implementação seguindo o guia responsive-table (modern-web-guidance) -->
+      <div tabindex="0" role="region" aria-labelledby="audit-table-caption" class="table-wrapper">
+        <table id="audit-table">
+          <caption id="audit-table-caption" class="sr-only">
+            Notas fiscais parlamentares da CEAP auditadas pela Rede Neural Multilayer Perceptron
+          </caption>
+          <thead>
+            <tr>
+              <th scope="col">Parlamentar (Partido-UF)</th>
+              <th scope="col">Categoria da Despesa</th>
+              <th scope="col">Fornecedor &amp; CNPJ</th>
+              <th scope="col">Valor Líquido</th>
+              <th scope="col">Base da Categoria</th>
+              <th scope="col">Projeção 5 Anos</th>
+              <th scope="col">Equivalência Social</th>
+              <th scope="col">Parecer NnModel</th>
+              <th scope="col">Nota Oficial</th>
+            </tr>
+          </thead>
+          <tbody id="audit-tbody"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <div class="container footer-inner">
+      <p>
+        <strong>OlhoCidadão</strong> — Projeto Acadêmico de Redes Neurais &amp; Transparência Pública Brasileira · Execução 100% CPU Local (Python/NumPy + Vite/pnpm).
+      </p>
+    </div>
+  </footer>
+
+  <script type="module" src="/web/app.js"></script>
+</body>
+</html>
