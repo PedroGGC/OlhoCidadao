@@ -15,10 +15,11 @@ O arquivo [`src/nn_model.py`](src/nn_model.py) implementa a classe `NnModel` uti
 - `backpropagation(self, X, y)`: Cálculo analítico dos gradientes `dW2`, `db2`, `dW1`, `db1` aplicando a Regra da Cadeia e atualização por Gradiente Descendente.
 - `fit(self, epochs=2000)` e `predict(self, X)`: Loop de treinamento completo com exportação automática da curva de aprendizado em `outputs/loss_curve.png`.
 
-### Requisito 2: Escolha do Dataset (Origem Brasil — Câmara dos Deputados / CEAP)
-O módulo [`src/data_fetcher.py`](src/data_fetcher.py) consome dados públicos da **Cota para o Exercício da Atividade Parlamentar (CEAP)** através da API Oficial de Dados Abertos da Câmara dos Deputados (`https://dadosabertos.camara.leg.br/api/v2/deputados`):
-- Coleta despesas reais de deputados federais em exercício (`/deputados/{id}/despesas`) até formar um conjunto de ~920 registros.
-- **Mecanismo de Resiliência Offline/Timeout:** Caso a API da Câmara apresente lentidão ou indisponibilidade, o módulo aciona automaticamente um gerador estatístico fiel aos padrões reais da CEAP (categorias oficiais, partidos, UFs e distribuições reais de notas fiscais em R$) e salva os dados brutos em `data/raw_despesas_camara.csv`.
+### Requisito 2: Escolha do Dataset (Origem Brasil — Câmara dos Deputados & Senado Federal)
+O módulo [`src/data_fetcher.py`](src/data_fetcher.py) consome e consolida dados públicos oficiais massivos da **Cota para o Exercício da Atividade Parlamentar (CEAP)** da Câmara dos Deputados e do **CEAPS** do Senado Federal, além de cadastros do IBGE e Tesouro Nacional:
+- **Base Completa & Dumps Massivos Integrados:** O repositório já inclui a base completa histórica de notas fiscais da Câmara dos Deputados (`cota_parlamentar_camara_completa.csv` — **326.304 notas fiscais**, ~70.4 MB) e a base integral dos senadores (`despesas_senadores_ceaps_completo.csv` — **39.652 notas fiscais**, ~9.9 MB), cobrindo todos os 513 deputados federais e 81 senadores da República.
+- **Amostra Estratificada para Treinamento (10.000 notas fiscais):** Para garantir treinamento ágil em qualquer CPU convencional sem lentidão de I/O em disco, o pipeline estrutura uma amostra balanceada e representativa de **10.000 notas fiscais reais** salvas em `data/raw_despesas_camara.csv` e `data/processed_dataset.csv`.
+- **Mecanismo de Resiliência Offline/Timeout:** Caso os portais governamentais apresentem indisponibilidade ou limite de taxa (*rate limiting*), o pipeline carrega diretamente os dados locais já baixados ou aciona o gerador estatístico fundamentado nas métricas reais da CEAP.
 - **Rotulagem Estatística (`y`) e Normalização Z-Score:** Calcula a média ($\mu_c$) e o desvio padrão ($\sigma_c$) por categoria de despesa (`codTipoDespesa`). Notas cujo `valorLiquido` ultrapassam $\mu_c + 1.2\sigma_c$ recebem `y = 1` (**Gasto Atípico/Suspeito**); as demais recebem `y = 0` (**Gasto Normal**). Para evitar *overflow* exponencial na rede, aplica-se a normalização Z-Score em NumPy puro:
   $$X_{\text{norm}} = \frac{X - \mu}{\sigma + 10^{-8}}$$
 
@@ -58,17 +59,17 @@ OlhoCidadão/
 │   ├── cota_parlamentar_camara_completa.csv    # DUMP MASSIVO: 326.304 notas fiscais reais (TODOS os 513 Deputados, 70.4 MB)
 │   ├── despesas_senadores_ceaps_completo.csv   # DUMP MASSIVO: 39.652 notas fiscais reais (TODOS os 81 Senadores, 9.9 MB)
 │   ├── deputados_historico_completo_camara.csv # TODOS os 7.889 Deputados Federais da história do Brasil (1.3 MB)
-│   ├── deputados_federais_camara.csv           # TODOS os 513 Deputados Federais em exercício (API Câmara)
-│   ├── senadores_federais_completo.csv         # TODOS os 81 Senadores da República em exercício (API Senado)
-│   ├── prefeituras_municipios_tesouro_ibge.csv # TODAS as 5.570 Prefeituras Municipais + Estados com CNPJ e população (Tesouro/IBGE)
-│   ├── raw_despesas_camara.csv                 # Amostra estratificada de 10.000 notas reais (Deputados + Senadores)
-│   ├── processed_dataset.csv                   # Dataset de 10.000 linhas codificado e rotulado (y = 0 ou 1)
-│   ├── partidos_politicos_camara.csv           # Tabela oficial de Partidos Políticos
-│   ├── estados_ibge_oficial.csv                # Tabela oficial das 27 UFs e Regiões do Brasil (IBGE)
-│   └── indicadores_custos_publicos_br.csv      # Custos unitários de referência (FNDE/MEC, DataSUS/SIGTAP, DIEESE, SENASP)
+│   ├── deputados_federais_camara.csv           # TODOS os 513 Deputados Federais em exercício (API Câmara, 122 KB)
+│   ├── senadores_federais_completo.csv         # TODOS os 81 Senadores da República em exercício (API Senado, 18 KB)
+│   ├── prefeituras_municipios_tesouro_ibge.csv # TODAS as 5.570 Prefeituras Municipais + Estados com CNPJ e população (Tesouro/IBGE, 326 KB)
+│   ├── raw_despesas_camara.csv                 # Amostra estratificada de 10.000 notas reais de Deputados e Senadores (2.8 MB)
+│   ├── processed_dataset.csv                   # Dataset de 10.000 linhas codificado e rotulado (y = 0 ou 1, 3.2 MB)
+│   ├── partidos_politicos_camara.csv           # Tabela oficial de Partidos Políticos (2 KB)
+│   ├── estados_ibge_oficial.csv                # Tabela oficial das 27 UFs e Regiões do Brasil (IBGE, 2.5 KB)
+│   └── indicadores_custos_publicos_br.csv      # Custos unitários de referência FNDE/SUS/DIEESE/SENASP (1.5 KB)
 ├── src/
 │   ├── __init__.py
-│   ├── data_fetcher.py               # Coleta na API da Câmara, pré-processamento e Z-Score
+│   ├── data_fetcher.py               # Coleta e consolidação de dados massivos, amostragem e Z-Score
 │   ├── nn_model.py                   # Rede Neural MLP construída 100% do zero em NumPy (tanh)
 │   └── impact_analyzer.py            # Projeção de 5 anos e geração do parecer de impacto social
 ├── outputs/
@@ -87,6 +88,34 @@ OlhoCidadão/
 ├── requirements.txt                       # Dependências leves para execução 100% em CPU
 └── README.md                              # Documentação técnica e acadêmica
 ```
+
+### 3.1 Detalhamento dos Datasets Públicos Massivos e Completos (`data/`)
+
+O projeto não se restringe a pequenos recortes sintetizados. Ele consolida uma infraestrutura completa de dados abertos governamentais brasileiros:
+
+| Arquivo em `data/` | Fonte Oficial | Qtd. Registros | Tamanho | Conteúdo e Finalidade |
+| :--- | :--- | :---: | :---: | :--- |
+| **`cota_parlamentar_camara_completa.csv`** | [Câmara dos Deputados](https://dadosabertos.camara.leg.br/) | **326.304** | **~70.4 MB** | **DUMP COMPLETO:** Todas as despesas e notas fiscais declaradas por todos os 513 deputados federais (com CNPJ, fornecedor, valor líquido e link da NF-e). |
+| **`despesas_senadores_ceaps_completo.csv`** | [Senado Federal (CEAPS)](https://dadosabertos.senado.leg.br/) | **39.652** | **~9.9 MB** | **DUMP COMPLETO:** Todas as notas fiscais dos 81 senadores da República em exercício nos exercícios recentes de 2025 e 2026. |
+| **`deputados_historico_completo_camara.csv`** | [API Dados Abertos](https://dadosabertos.camara.leg.br/api/v2/deputados) | **7.889** | **~1.3 MB** | Base histórica com todos os parlamentares federais que já exerceram mandato na história do Brasil. |
+| **`processed_dataset.csv`** | Amostragem Estratificada + Engenharia de Features | **10.000** | **~3.2 MB** | Dataset pré-processado com as 5 features normalizadas via Z-Score e rótulo supervisionado `y \in \{0, 1\}` para treino e teste da MLP. |
+| **`raw_despesas_camara.csv`** | Extração Cruzada (Deputados + Senadores) | **10.000** | **~2.8 MB** | Amostra estratificada preservando nomes de parlamentares, partidos, categorias originais e URLs das notas fiscais. |
+| **`prefeituras_municipios_tesouro_ibge.csv`** | [IBGE](https://servicodados.ibge.gov.br/) & [Tesouro Nacional / SICONFI](https://siconfi.tesouro.gov.br/) | **5.570** | **~326 KB** | Relação de todos os 5.570 municípios e capitais brasileiras, incluindo CNPJs de prefeituras, estados e estimativas populacionais. |
+| **`deputados_federais_camara.csv`** | [API da Câmara](https://dadosabertos.camara.leg.br/api/v2/deputados) | **513** | **~122 KB** | Cadastro completo dos 513 deputados da 57ª legislatura em exercício (foto oficial, partido, UF, e-mail). |
+| **`senadores_federais_completo.csv`** | [API do Senado](https://adm.senado.gov.br/) | **81** | **~18 KB** | Cadastro dos 81 senadores federais com links oficiais e gabinetes. |
+| **`estados_ibge_oficial.csv`** | [API Localidades IBGE](https://servicodados.ibge.gov.br/) | **27** | **~2.5 KB** | Tabela de referência das 27 Unidades Federativas e 5 Macrorregiões do Brasil. |
+| **`partidos_politicos_camara.csv`** | [API Câmara](https://dadosabertos.camara.leg.br/) | **Legendas** | **~2.0 KB** | Mapeamento oficial de legendas partidárias brasileiras. |
+| **`indicadores_custos_publicos_br.csv`** | FNDE/PNAE, DataSUS/SIGTAP, DIEESE, SENASP | **Tabela** | **~1.5 KB** | Custos unitários públicos auditados para o cálculo de custo de oportunidade social. |
+
+> [!NOTE]
+> **Por que esses dados massivos estão versionados no repositório?**  
+> Para garantir **100% de autonomia e reprodutibilidade imediata**. Ao clonar o projeto, o avaliador ou usuário tem à disposição o ecossistema integral de dados sem depender de conexões externas lentas ou de instabilidades momentâneas nas APIs governamentais.
+
+> [!WARNING]
+> **Aviso de Arquivos Grandes no GitHub (> 50 MB):**  
+> O arquivo `cota_parlamentar_camara_completa.csv` possui **~70.4 MB**, o que dispara um aviso automático do GitHub recomendando o uso do *Git LFS (Large File Storage)* para arquivos acima de 50 MB. O GitHub aceita arquivos de até 100 MB em commits padrão. Caso essa base venha a ser expandida no futuro além de 100 MB, utilize o Git LFS ou ignore a base bruta completa no `.gitignore`.
+
+---
 
 ---
 

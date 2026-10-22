@@ -39,28 +39,48 @@ Para manter a fidelidade ao trabalho acadêmico e adicionar a camada de análise
 
 ---
 
-## 3. Estrutura de Diretórios (Scaffold)
+## 3. Estrutura de Diretórios e Bases de Dados Massivas (`data/`)
 
 ```text
-transparencia-ia-brasil/
+OlhoCidadão/
 │
 ├── data/
-│   ├── raw_despesas_camara.csv       # Dados brutos baixados da API da Câmara
-│   └── processed_dataset.csv         # Dados limpos e rotulados prontos para a rede
+│   ├── cota_parlamentar_camara_completa.csv    # DUMP MASSIVO: 326.304 notas fiscais reais (513 Deputados, 70.4 MB)
+│   ├── despesas_senadores_ceaps_completo.csv   # DUMP MASSIVO: 39.652 notas fiscais reais (81 Senadores, 9.9 MB)
+│   ├── deputados_historico_completo_camara.csv # Histórico completo de 7.889 Deputados da história do Brasil (1.3 MB)
+│   ├── deputados_federais_camara.csv           # 513 Deputados Federais em exercício (122 KB)
+│   ├── senadores_federais_completo.csv         # 81 Senadores da República em exercício (18 KB)
+│   ├── prefeituras_municipios_tesouro_ibge.csv # 5.570 Prefeituras Municipais com CNPJ e População (326 KB)
+│   ├── raw_despesas_camara.csv                 # Amostra estratificada de 10.000 notas fiscais reais (2.8 MB)
+│   ├── processed_dataset.csv                   # Dataset de 10.000 amostras codificadas e rotuladas para MLP (3.2 MB)
+│   ├── partidos_politicos_camara.csv           # Mapeamento oficial de legendas partidárias (2 KB)
+│   ├── estados_ibge_oficial.csv                # Tabela de 27 UFs e 5 Macrorregiões do IBGE (2.5 KB)
+│   └── indicadores_custos_publicos_br.csv      # Custos de referência social PNAE/SUS/DIEESE/SENASP (1.5 KB)
 │
 ├── src/
 │   ├── __init__.py
-│   ├── data_fetcher.py               # Script que baixa dados da API da Câmara e pré-processa
-│   ├── nn_model.py                   # A Rede Neural do Zero (Baseada na playlist + Customização)
-│   └── impact_analyzer.py            # Integração com IA para gerar o relatório de impacto social
+│   ├── data_fetcher.py               # Coleta, consolidação massiva e normalização Z-Score
+│   ├── nn_model.py                   # Rede Neural MLP construída do zero em NumPy (tanh + softmax)
+│   └── impact_analyzer.py            # Analisador de impacto social em 5 anos e parecer cidadão
 │
 ├── outputs/
-│   ├── loss_curve.png                # Gráfico da queda do erro no treinamento (para apresentação)
-│   └── relatorio_auditoria.md        # Relatório final gerado com os casos críticos e impacto social
+│   ├── loss_curve.png                # Gráfico da queda de loss e acurácia da rede neural
+│   └── relatorio_auditoria.md        # Relatório de auditoria e impacto social
 │
-├── main.py                           # Orquestrador que roda todo o pipeline de ponta a ponta
-├── requirements.txt                  # Dependências leves (numpy, pandas, matplotlib, requests, google-genai)
-└── README.md                         # Documentação acadêmica explicando a matemática e o dataset
+├── public/
+│   └── data/
+│       ├── dashboard_data.json       # Pesos treinados e notas auditadas para a aplicação web
+│       └── loss_curve.png            # Curva de treinamento servida no navegador
+│
+├── web/
+│   ├── app.js                        # Dashboard interativo + inferência da MLP no navegador
+│   └── style.css                     # Design responsivo e painel cidadão
+│
+├── index.html                        # Aplicação Web (Vite + pnpm)
+├── main.py                           # Orquestrador ponta a ponta do pipeline
+├── requirements.txt                  # Dependências Python (numpy, pandas, matplotlib, requests, google-genai)
+├── package.json                      # Gerenciador pnpm e scripts frontend
+└── README.md                         # Documentação acadêmica detalhada
 ```
 
 ---
