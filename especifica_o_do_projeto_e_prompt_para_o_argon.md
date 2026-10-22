@@ -5,16 +5,33 @@
 
 ---
 
-## 1. Visão Geral e Alinhamento com as Diretrizes
+## 1. Diretrizes Oficiais da Atividade Prática (Avaliação do 2º Bimestre)
 
-Este projeto une o rigor acadêmico exigido na atividade prática (construção de uma rede neural *Multilayer Perceptron* do zero em Python utilizando apenas `numpy`) com uma aplicação prática de forte impacto social no Brasil: **a auditoria de gastos públicos de deputados federais e a tradução de gastos atípicos em custo de oportunidade social** (educação, saúde e segurança).
+> *"A diretriz para a nossa atividade prática que irá compor a nota do 2º bimestre, juntamente com a prova oficial."*
 
-### Checklist dos Requisitos do Professor:
-1. **Desenvolvimento Base (Playlist de Referência):** Implementação da classe `NnModel` contendo os métodos `__init__`, `forward`, `loss`, `backpropagation` e `fit`, operando exclusivamente com álgebra linear via `numpy`.
-2. **Escolha do Dataset (Origem Brasil):** Consumo de dados reais da **Cota para o Exercício da Atividade Parlamentar (CEAP)** via API Oficial de Dados Abertos da Câmara dos Deputados (`dadosabertos.camara.leg.br`).
-3. **Customização e Aplicação:**
-   * **Adequação da Arquitetura:** A camada de entrada deixa de ter apenas $2$ neurônios (como no exemplo sintético `make_moons` da playlist) e passa a receber $N$ variáveis reais do gasto parlamentar (Valor Líquido, Categoria da Despesa, Mês, UF/Região, Partido).
-   * **Alteração da Função de Ativação:** Substituição da função de ativação padrão da camada oculta pela **Tangente Hiperbólica ($\tanh$)** ou **Leaky ReLU**, ajustando sua respectiva derivada no *backpropagation*.
+### Escopo Oficial da Atividade:
+O objetivo é praticar e expandir os conhecimentos adquiridos ao longo das aulas através dos seguintes passos obrigatórios:
+
+1. **Desenvolvimento Base:** Desenvolver a estrutura de rede neural criada e explicada na playlist de referência *"Rede neural do zero em Python"*.
+2. **Escolha do Dataset:** Escolher um banco de dados de qualquer área de interesse, com a **condição obrigatória de que sejam dados de origem do Brasil**.
+3. **Customização & Aplicação:** Aplicar o banco de dados escolhido na rede neural desenvolvida. Vocês devem **alterar a função de ativação** e **adequar a arquitetura da rede** de acordo com a problemática dos dados selecionados.
+
+### Formato de Trabalho, Prazo e Materiais de Apoio:
+- **Formato:** Individual ou em duplas (no máximo).
+- **Prazo de Entrega e Apresentação:** Data limite: **30/10/2026**.
+- **Materiais de Apoio Fundamentais Indicados pelo Professor:**
+  - 📺 **Redes Neurais - Conceitos Básicos:** [Playlist no YouTube](https://www.youtube.com/watch?v=ebToEXQFCo4&list=PLQH6T1jnIb5J7vugBAauJsFU8Qgvuf-4X)
+  - 📺 **Rede neural do zero em Python (Referência do Projeto):** [Playlist no YouTube](https://www.youtube.com/watch?v=OGcOH9damt0&list=PLQH6T1jnIb5I1s7chxtL24ZuX4g-PA7uK)
+
+---
+
+### Matriz de Conformidade do Projeto OlhoCidadão com a Atividade
+
+| Requisito do Professor | Exigência da Atividade | Implementação no Projeto OlhoCidadão | Arquivo de Código | Conformidade |
+| :--- | :--- | :--- | :--- | :---: |
+| **Passo 1: Desenvolvimento Base** | Implementar a estrutura de rede neural da playlist de referência. | Classe `NnModel` construída **100% em NumPy do zero** (inicialização de pesos Xavier, forward pass, categorical cross-entropy loss analítica, backpropagation por regra da cadeia e fit loop). | [`src/nn_model.py`](src/nn_model.py) | **100% Conforme** |
+| **Passo 2: Escolha do Dataset** | Banco de dados de qualquer área com **origem obrigatória do Brasil**. | Utilização de bases públicas oficiais do Brasil: **Câmara dos Deputados (CEAP)**, **Senado Federal (CEAPS)**, **IBGE** e **Tesouro Nacional/SICONFI**. Mais de 326 mil notas reais integradas. | [`src/data_fetcher.py`](src/data_fetcher.py) e [`data/`](data/) | **100% Conforme** |
+| **Passo 3: Customização & Aplicação** | Adequar a arquitetura da rede e alterar a função de ativação. | • **Arquitetura:** Camada de entrada expandida para 5 neurônios reais (`valorLiquido`, `codTipoDespesa`, `mes`, `codPartido`, `codUF`).<br>• **Ativação:** Substituição da sigmoide clássica pela **Tangente Hiperbólica ($\tanh$)** com derivada analítica exata ($1 - a^2$). | [`src/nn_model.py`](src/nn_model.py#L38-L102) | **100% Conforme** |
 
 ---
 

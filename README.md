@@ -4,7 +4,28 @@ Sistema híbrido de **Transparência Pública Brasileira** que combina uma **Red
 
 ---
 
-## 1. Alinhamento com os 3 Requisitos da Avaliação Acadêmica
+## 1. Contexto Acadêmico & Diretrizes Oficiais da Atividade
+
+> **Disciplina:** Redes Neurais / Inteligência Artificial  
+> **Composição da Nota:** Atividade Prática do 2º Bimestre (composição de nota com a Prova Oficial)  
+> **Formato de Trabalho:** Individual ou em Duplas  
+> **Prazo de Entrega e Apresentação:** 30/10/2026  
+> 
+> **Materiais de Apoio Fundamentais Indicados pelo Professor:**
+> - 📺 [Redes Neurais — Conceitos Básicos (Playlist)](https://www.youtube.com/watch?v=ebToEXQFCo4&list=PLQH6T1jnIb5J7vugBAauJsFU8Qgvuf-4X)
+> - 📺 [Rede neural do zero em Python — Referência do Projeto (Playlist)](https://www.youtube.com/watch?v=OGcOH9damt0&list=PLQH6T1jnIb5I1s7chxtL24ZuX4g-PA7uK)
+
+### 📋 Matriz de Conformidade com o Escopo da Atividade
+
+| Item do Escopo Oficial | Diretriz Exigida pelo Professor | Como o Projeto OlhoCidadão Cumpre | Arquivo de Referência | Status |
+| :--- | :--- | :--- | :--- | :---: |
+| **1. Desenvolvimento Base** | *"Desenvolver a estrutura de rede neural criada e explicada na playlist de referência 'Rede neural do zero em Python'."* | Implementação da classe `NnModel` construída **100% em NumPy do zero**, sem scikit-learn, pytorch ou tensorflow. Contém pesos Xavier, `forward`, `loss` analítica por Entropia Cruzada, `backpropagation` por Regra da Cadeia e loop `fit` com exportação de curva de perda. | [`src/nn_model.py`](src/nn_model.py) | **100% Conforme** |
+| **2. Escolha do Dataset** | *"Escolher um banco de dados de qualquer área de interesse, com a condição obrigatória de que sejam dados de origem do Brasil."* | Consumo de dados públicos oficiais brasileiros da **Câmara dos Deputados (CEAP)**, **Senado Federal (CEAPS)**, **IBGE** e **Tesouro Nacional/SICONFI**. Inclui dump integral de 326 mil notas fiscais e amostra balanceada de 10.000 notas fiscais reais. | [`src/data_fetcher.py`](src/data_fetcher.py) e [`data/`](data/) | **100% Conforme** |
+| **3. Customização & Aplicação** | *"Aplicar o banco de dados escolhido na rede neural desenvolvida. Vocês devem alterar a função de ativação e adequar a arquitetura da rede de acordo com a problemática dos dados selecionados."* | • **Adequação da Arquitetura:** Camada de entrada expandida de 2 entradas sintéticas (`make_moons`) para **5 features reais** de gastos parlamentares (`valorLiquido`, `codTipoDespesa`, `mes`, `codPartido`, `codUF`).<br>• **Alteração da Ativação:** Substituição da sigmoide clássica pela **Tangente Hiperbólica ($\tanh$)**, com derivada analítica exata $f'(a) = 1 - a^2$ no backpropagation, operando em harmonia com normalização Z-Score. | [`src/nn_model.py`](src/nn_model.py#L38-L102) | **100% Conforme** |
+
+---
+
+## 2. Detalhamento Técnico dos 3 Requisitos da Atividade
 
 ### Requisito 1: Desenvolvimento Base (Rede Neural do Zero em Python/NumPy)
 O arquivo [`src/nn_model.py`](src/nn_model.py) implementa a classe `NnModel` utilizando exclusivamente álgebra linear vetorial em `numpy` (sem `scikit-learn`, `pytorch` ou `tensorflow`), contemplando toda a estrutura clássica da playlist de referência (*"Rede neural do zero em Python"*):
@@ -39,7 +60,7 @@ Em relação ao modelo didático clássico de 2 entradas sintéticas (`make_moon
 
 ---
 
-## 2. Analisador de Impacto Social (`src/impact_analyzer.py`)
+## 3. Analisador de Impacto Social (`src/impact_analyzer.py`)
 
 Todos os gastos do conjunto de teste classificados como **Classe 1 (Atípicos)** pela Rede Neural são auditados pelo módulo [`src/impact_analyzer.py`](src/impact_analyzer.py):
 - Calcula o excesso mensal frente à média aceitável da categoria e projeta o desperdício acumulado ao longo de **60 meses (5 anos)**.
@@ -51,7 +72,7 @@ Todos os gastos do conjunto de teste classificados como **Classe 1 (Atípicos)**
 
 ---
 
-## 3. Estrutura de Arquivos do Projeto
+## 4. Estrutura de Arquivos do Projeto
 
 ```text
 OlhoCidadão/
@@ -89,7 +110,7 @@ OlhoCidadão/
 └── README.md                              # Documentação técnica e acadêmica
 ```
 
-### 3.1 Detalhamento dos Datasets Públicos Massivos e Completos (`data/`)
+### 4.1 Detalhamento dos Datasets Públicos Massivos e Completos (`data/`)
 
 O projeto não se restringe a pequenos recortes sintetizados. Ele consolida uma infraestrutura completa de dados abertos governamentais brasileiros:
 
@@ -117,9 +138,7 @@ O projeto não se restringe a pequenos recortes sintetizados. Ele consolida uma 
 
 ---
 
----
-
-## 4. Como Executar o Projeto (Backend Python + Site Web com `pnpm`)
+## 5. Como Executar o Projeto (Backend Python + Site Web com `pnpm`)
 
 ### Passo 1: Instalar as dependências do Python (Motor da Rede Neural)
 ```bash
