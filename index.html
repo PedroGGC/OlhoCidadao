@@ -3,236 +3,439 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OlhoCidadão — Auditoria Inteligente de Gastos Parlamentares (CEAP)</title>
+  <!-- Tema padrão do portal: escuro suave. Preferência do usuário aplicada antes da renderização (evita flash). -->
+  <meta name="color-scheme" content="dark" />
+  <script>
+    try {
+      document.querySelector('meta[name="color-scheme"]').content = localStorage.getItem('color-scheme') ?? 'dark';
+    } catch (e) {}
+  </script>
+  <title>OlhoCidadão — Consulta de Gastos de Deputados e Senadores</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/web/style.css" />
 </head>
 <body>
-  <header class="topbar">
-    <div class="container topbar-inner">
+  <a href="#conteudo" class="skip-link">Pular para o conteúdo</a>
+
+  <header class="site-header">
+    <div class="container header-inner">
       <div class="brand">
-        <span class="brand-badge" aria-hidden="true">BR</span>
+        <div class="brand-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        </div>
         <div>
-          <h1 class="brand-title">OlhoCidadão</h1>
-          <p class="brand-subtitle">Auditoria Inteligente da CEAP · Rede Neural MLP do Zero (NumPy) + Impacto Social</p>
+          <span class="brand-title">OlhoCidadão</span>
+          <span class="brand-tagline">Consulta de gastos parlamentares · Câmara &amp; Senado</span>
         </div>
       </div>
-      <nav class="topnav" aria-label="Navegação principal">
-        <a href="#visao-geral" class="nav-link">Métricas MLP</a>
-        <a href="#simulador-mlp" class="nav-link">Simulador Neural</a>
-        <a href="#impacto-social" class="nav-link">Impacto Social (5 Anos)</a>
-        <a href="#auditoria-notas" class="nav-link">Notas Fiscais Auditadas</a>
+
+      <nav class="tab-nav" role="tablist" aria-label="Seções do portal">
+        <button type="button" role="tab" aria-selected="true" aria-controls="tab-painel" id="btn-tab-painel" class="tab-btn active" data-tab="painel">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+          Consulta
+        </button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="tab-impacto" id="btn-tab-impacto" class="tab-btn" data-tab="impacto">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+          Serviços Equivalentes
+        </button>
+        <button type="button" role="tab" aria-selected="false" aria-controls="tab-tecnica" id="btn-tab-tecnica" class="tab-btn" data-tab="tecnica">
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+          Ficha Técnica
+        </button>
       </nav>
+
+      <div class="header-actions">
+        <button type="button" class="icon-btn" id="btn-open-help" aria-label="Ajuda e glossário" title="Ajuda e glossário">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M9.1 9a3 3 0 0 1 5.8 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        </button>
+        <button type="button" class="icon-btn" id="btn-open-settings" aria-label="Preferências" title="Preferências">
+          <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+        </button>
+      </div>
     </div>
   </header>
 
-  <main class="container main-content">
-    <!-- Hero / Status Banner -->
-    <section class="hero-card" id="visao-geral">
-      <div class="hero-text">
-        <div class="pill-group">
-          <span class="status-pill pill-emerald">100% CPU Local · NumPy Puro</span>
-          <span class="status-pill pill-blue">Ativação Customizada: tanh(z)</span>
-          <span class="status-pill pill-amber">Dados Abertos: Câmara dos Deputados (57ª Leg.)</span>
+  <main class="container main-wrap" id="conteudo">
+    <!-- ================= ABA 1: CONSULTA ================= -->
+    <section id="tab-painel" role="tabpanel" aria-labelledby="btn-tab-painel" class="tab-panel active">
+      <div class="surface-card filter-section">
+        <div class="filter-top-row">
+          <div class="search-field-wrap">
+            <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+            <input type="search" id="f-busca" list="dl-busca" autocomplete="off"
+              placeholder="Pesquisar deputado, senador, fornecedor ou CNPJ..."
+              aria-label="Pesquisar parlamentar, fornecedor ou CNPJ" />
+            <kbd class="kbd-hint" aria-hidden="true">/</kbd>
+            <datalist id="dl-busca"></datalist>
+          </div>
+
+          <div class="quick-person-wrap">
+            <select id="f-parlamentar" aria-label="Selecionar parlamentar">
+              <option value="all">Todos os parlamentares</option>
+            </select>
+          </div>
+
+          <div class="filter-actions">
+            <button type="button" id="btn-copy-link" class="btn-ghost" title="Copiar link desta consulta">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              Compartilhar
+            </button>
+            <button type="button" id="btn-export-csv" class="btn-ghost" title="Baixar as notas do filtro em CSV">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Exportar CSV
+            </button>
+            <button type="button" id="btn-reset-filters" class="btn-secondary">Limpar filtros</button>
+          </div>
         </div>
-        <h2>Transparência Pública com Redes Neurais e Custo de Oportunidade Cidadã</h2>
-        <p>
-          Cada nota fiscal da <strong>Cota para o Exercício da Atividade Parlamentar (CEAP)</strong> é normalizada via
-          <em>Z-Score</em> e processada por uma Rede Neural <strong>Multilayer Perceptron (5 → 16 → 2)</strong> construída do zero em Python/NumPy.
-          Os gastos classificados como <strong>Classe 1 (Atípicos)</strong> têm seu excesso projetado para 60 meses (5 anos) e convertido em políticas públicas essenciais.
-        </p>
+
+        <div class="filter-grid">
+          <div class="filter-field">
+            <label for="f-cargo">Casa</label>
+            <select id="f-cargo">
+              <option value="all">Câmara + Senado</option>
+              <option value="DEPUTADO FEDERAL">Deputados Federais</option>
+              <option value="SENADOR DA REPÚBLICA">Senadores</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="f-regiao">Região</label>
+            <select id="f-regiao">
+              <option value="all">Todas</option>
+              <option value="Norte">Norte</option>
+              <option value="Nordeste">Nordeste</option>
+              <option value="Centro-Oeste">Centro-Oeste</option>
+              <option value="Sudeste">Sudeste</option>
+              <option value="Sul">Sul</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="f-uf">Estado</label>
+            <select id="f-uf"><option value="all">Todos</option></select>
+          </div>
+          <div class="filter-field">
+            <label for="f-partido">Partido</label>
+            <select id="f-partido"><option value="all">Todos</option></select>
+          </div>
+          <div class="filter-field">
+            <label for="f-ano">Ano</label>
+            <select id="f-ano">
+              <option value="all">2025 e 2026</option>
+              <option value="2026">2026</option>
+              <option value="2025">2025</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="f-mes">Mês</label>
+            <select id="f-mes">
+              <option value="all">Todos</option>
+              <option value="1">Janeiro</option><option value="2">Fevereiro</option><option value="3">Março</option>
+              <option value="4">Abril</option><option value="5">Maio</option><option value="6">Junho</option>
+              <option value="7">Julho</option><option value="8">Agosto</option><option value="9">Setembro</option>
+              <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
+            </select>
+          </div>
+          <div class="filter-field">
+            <label for="f-categoria">Tipo de despesa</label>
+            <select id="f-categoria"><option value="all">Todas</option></select>
+          </div>
+          <div class="filter-field">
+            <label for="f-alerta">Avaliação</label>
+            <select id="f-alerta">
+              <option value="all">Todos os gastos</option>
+              <option value="1">Somente com alerta</option>
+              <option value="0">Dentro da média</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="active-filters-bar" class="active-filters-bar" hidden></div>
       </div>
 
-      <div class="kpi-grid" id="kpi-grid">
-        <article class="kpi-card">
-          <span class="kpi-label">Acurácia no Teste (20%)</span>
-          <strong class="kpi-value" id="kpi-acc">--%</strong>
-          <span class="kpi-meta" id="kpi-recall">Recall Atípicos: --%</span>
+      <div id="parlamentar-profile-banner" class="surface-card profile-banner" hidden></div>
+
+      <div class="kpi-row">
+        <article class="surface-card kpi-box">
+          <span class="kpi-title">Total gasto no recorte</span>
+          <strong class="kpi-number" id="kpi-total-gasto">—</strong>
+          <span class="kpi-sub" id="kpi-total-notas">carregando…</span>
+          <span class="kpi-delta" id="kpi-delta" hidden></span>
         </article>
-        <article class="kpi-card">
-          <span class="kpi-label">Queda da Cross-Entropy Loss</span>
-          <strong class="kpi-value mono" id="kpi-loss">-- → --</strong>
-          <span class="kpi-meta">2.000 Épocas · lr = 0.05</span>
+        <article class="surface-card kpi-box">
+          <span class="kpi-title">Valor médio por nota</span>
+          <strong class="kpi-number" id="kpi-media-nota">—</strong>
+          <span class="kpi-sub" id="kpi-total-parlamentares">—</span>
         </article>
-        <article class="kpi-card kpi-alert">
-          <span class="kpi-label">Impacto Projetado (5 Anos)</span>
-          <strong class="kpi-value" id="kpi-impacto">R$ --</strong>
-          <span class="kpi-meta" id="kpi-suspeitos">-- notas suspeitas no teste</span>
+        <article class="surface-card kpi-box kpi-box-warn">
+          <span class="kpi-title">Gastos acima do padrão</span>
+          <strong class="kpi-number" id="kpi-total-atipicos">—</strong>
+          <span class="kpi-sub" id="kpi-excesso-mensal">—</span>
         </article>
-        <article class="kpi-card kpi-highlight">
-          <span class="kpi-label">Equivalência em Educação (PNAE)</span>
-          <strong class="kpi-value" id="kpi-merendas">--</strong>
-          <span class="kpi-meta">Merendas escolares a R$ 1,50</span>
+        <article class="surface-card kpi-box kpi-box-accent">
+          <span class="kpi-title">Equivale em 5 anos a</span>
+          <strong class="kpi-number" id="kpi-equiv-merendas">—</strong>
+          <span class="kpi-sub">merendas escolares (PNAE · R$ 1,50)</span>
         </article>
       </div>
-    </section>
 
-    <!-- Simulador Interativo da Rede Neural + Curva de Aprendizado -->
-    <section class="split-grid" id="simulador-mlp">
-      <div class="panel-card">
-        <div class="panel-header">
-          <div>
-            <span class="section-eyebrow">Inferência Vetorial ao Vivo no Navegador</span>
-            <h3>Simulador da Rede Neural <code>NnModel</code> (Pesos Reais Treinados)</h3>
+      <article class="surface-card ai-insight-card" aria-live="polite">
+        <div class="ai-insight-header">
+          <div class="ai-badge">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
+            <span>Resumo inteligente</span>
           </div>
-          <span class="badge-code">f(z) = tanh(z) · f'(a) = 1 - a²</span>
+          <span class="ai-context-tag" id="ai-context-tag">Visão geral</span>
         </div>
-        <p class="panel-desc">
-          Teste qualquer despesa parlamentar usando as matrizes reais <code>W1</code>, <code>b1</code>, <code>W2</code> e <code>b2</code> exportadas pelo treinamento em NumPy.
-        </p>
+        <div class="ai-insight-body" id="ai-insight-body">
+          <div class="skeleton-line"></div><div class="skeleton-line short"></div>
+        </div>
+      </article>
 
-        <form id="sim-form" class="sim-form">
-          <div class="form-row">
-            <label for="sim-valor">
-              Valor Líquido da Nota Fiscal (R$)
-              <input type="number" id="sim-valor" step="10" min="10" max="150000" value="9000" required />
-            </label>
-            <label for="sim-categoria">
-              Categoria da Despesa (CEAP)
-              <select id="sim-categoria"></select>
-            </label>
-          </div>
-
-          <div class="form-row form-row-3">
-            <label for="sim-uf">
-              Estado (UF)
-              <select id="sim-uf"></select>
-            </label>
-            <label for="sim-partido">
-              Partido
-              <select id="sim-partido"></select>
-            </label>
-            <label for="sim-mes">
-              Mês de Competência
-              <input type="number" id="sim-mes" min="1" max="12" value="8" required />
-            </label>
-          </div>
-        </form>
-
-        <div class="sim-result-box" id="sim-result-box">
-          <div class="sim-result-header">
+      <div class="charts-grid">
+        <article class="surface-card chart-card">
+          <div class="card-head">
             <div>
-              <span class="sim-status-label">Classificação da Rede Neural:</span>
-              <h4 id="sim-verdict">Calculando...</h4>
+              <h3>Movimentação por mês</h3>
+              <p class="card-subtitle">Clique em um mês para filtrar</p>
             </div>
-            <div class="sim-prob-wrap">
-              <span class="sim-prob-label">Probabilidade (Softmax Classe 1)</span>
-              <strong class="sim-prob-value mono" id="sim-prob">--%</strong>
+            <div class="chart-legend">
+              <span><span class="legend-dot dot-normal"></span>Dentro da média</span>
+              <span><span class="legend-dot dot-alert"></span>Com alerta</span>
             </div>
           </div>
+          <div id="chart-monthly" class="monthly-chart-container"></div>
+        </article>
 
-          <div class="prob-bar-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" id="sim-prob-bar-wrap">
-            <div class="prob-bar-fill" id="sim-prob-bar"></div>
+        <article class="surface-card chart-card">
+          <div class="card-head">
+            <div>
+              <h3>Onde o dinheiro foi gasto</h3>
+              <p class="card-subtitle">Principais tipos de despesa · clique para filtrar</p>
+            </div>
           </div>
-
-          <div class="sim-impact-preview" id="sim-impact-preview"></div>
-
-          <div class="neurons-box">
-            <span class="neurons-title">Ativações dos 16 Neurônios da Camada Oculta <code>a1 = np.tanh(X_norm · W1 + b1)</code>:</span>
-            <div class="neurons-grid" id="neurons-grid"></div>
-          </div>
-        </div>
+          <div id="chart-categories" class="bars-list"></div>
+        </article>
       </div>
 
-      <div class="panel-card">
-        <div class="panel-header">
+      <article class="surface-card section-card">
+        <div class="card-head">
           <div>
-            <span class="section-eyebrow">Convergência em CPU Local</span>
-            <h3>Curva de Aprendizado & Arquitetura Matemática</h3>
+            <h3>Quem mais gastou</h3>
+            <p class="card-subtitle">Clique em um item para filtrar o painel</p>
           </div>
-          <span class="badge-code" id="confusion-badge">VP: -- | VN: --</span>
-        </div>
-
-        <figure class="chart-figure">
-          <img src="/data/loss_curve.png" alt="Gráfico da curva de aprendizado mostrando a queda da Cross-Entropy Loss e subida da Acurácia ao longo de 2000 épocas" class="loss-chart-img" />
-          <figcaption>
-            Gráfico gerado em <code>outputs/loss_curve.png</code> durante o treinamento da <code>NnModel</code>.
-          </figcaption>
-        </figure>
-
-        <div class="math-summary">
-          <div class="math-item">
-            <strong>1. Normalização Z-Score (NumPy)</strong>
-            <code>X_norm = (X - mean) / (std + 1e-8)</code>
-          </div>
-          <div class="math-item">
-            <strong>2. Forward Pass (Tangente Hiperbólica + Softmax)</strong>
-            <code>a1 = np.tanh(X · W1 + b1)  |  y_pred = softmax(a1 · W2 + b2)</code>
-          </div>
-          <div class="math-item">
-            <strong>3. Backpropagation com Derivada Exata da tanh</strong>
-            <code>delta1 = (delta2 · W2.T) * (1.0 - np.power(a1, 2))</code>
+          <div class="segmented-control" role="group" aria-label="Agrupar ranking por">
+            <button type="button" class="seg-btn active" data-rank="parlamentar" aria-pressed="true">Parlamentar</button>
+            <button type="button" class="seg-btn" data-rank="partido" aria-pressed="false">Partido</button>
+            <button type="button" class="seg-btn" data-rank="uf" aria-pressed="false">Estado</button>
+            <button type="button" class="seg-btn" data-rank="regiao" aria-pressed="false">Região</button>
+            <button type="button" class="seg-btn" data-rank="fornecedor" aria-pressed="false">Fornecedor</button>
           </div>
         </div>
+        <div id="chart-ranking" class="ranking-grid"></div>
+      </article>
+
+      <article class="surface-card section-card">
+        <div class="card-head">
+          <div>
+            <h3>Notas fiscais</h3>
+            <p class="card-subtitle" id="table-count-label">—</p>
+          </div>
+          <div class="pagination-controls">
+            <button type="button" id="btn-prev-page" class="btn-page" aria-label="Página anterior">← Anterior</button>
+            <span id="page-indicator" class="page-info">Página 1</span>
+            <button type="button" id="btn-next-page" class="btn-page" aria-label="Próxima página">Próxima →</button>
+          </div>
+        </div>
+
+        <div tabindex="0" role="region" aria-labelledby="audit-table-caption" class="table-wrapper">
+          <table id="audit-table">
+            <caption id="audit-table-caption" class="sr-only">Notas fiscais de Deputados Federais e Senadores</caption>
+            <thead>
+              <tr>
+                <th scope="col" data-col="nomeParlamentar"><button type="button" class="th-sort" data-sort="nomeParlamentar">Parlamentar</button></th>
+                <th scope="col">Partido / UF</th>
+                <th scope="col" data-col="data"><button type="button" class="th-sort" data-sort="data">Mês/Ano</button></th>
+                <th scope="col">Despesa</th>
+                <th scope="col">Fornecedor</th>
+                <th scope="col" data-col="valorLiquido"><button type="button" class="th-sort" data-sort="valorLiquido">Valor</button></th>
+                <th scope="col" data-col="diffPct"><button type="button" class="th-sort" data-sort="diffPct">vs. média</button></th>
+                <th scope="col">Avaliação</th>
+                <th scope="col">Ações</th>
+              </tr>
+            </thead>
+            <tbody id="audit-tbody"></tbody>
+          </table>
+          <div id="table-empty" class="empty-state" hidden>
+            <svg viewBox="0 0 24 24" width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/><path d="M8 11h6"/></svg>
+            <p><strong>Nenhuma nota encontrada.</strong></p>
+            <p>Tente remover algum filtro ou buscar por outro termo.</p>
+            <button type="button" class="btn-secondary" data-action="reset">Limpar filtros</button>
+          </div>
+        </div>
+      </article>
+    </section>
+
+    <!-- ================= ABA 2: SERVIÇOS EQUIVALENTES ================= -->
+    <section id="tab-impacto" role="tabpanel" aria-labelledby="btn-tab-impacto" class="tab-panel" hidden>
+      <div class="surface-card section-card">
+        <div class="card-head">
+          <div>
+            <h2>O que esse dinheiro poderia pagar?</h2>
+            <p class="card-subtitle">
+              Valores acima do padrão no recorte atual (<strong id="impact-scope-label">Visão geral</strong>),
+              projetados para 5 anos e convertidos em serviços públicos.
+            </p>
+          </div>
+          <div class="impact-highlight-pill">
+            Projeção em 5 anos: <strong id="impact-total-5y">—</strong>
+          </div>
+        </div>
+        <div class="impact-cards-grid" id="impact-cards-grid"></div>
+        <p class="footnote">Custos de referência: FNDE/PNAE, DataSUS/SIGTAP, DIEESE, SENASP e salário mínimo nacional. A projeção é ilustrativa e assume que o padrão de excesso se repetiria mensalmente por 60 meses.</p>
       </div>
     </section>
 
-    <!-- Custo de Oportunidade Social em 5 Anos -->
-    <section class="panel-card section-block" id="impacto-social">
-      <div class="panel-header">
-        <div>
-          <span class="section-eyebrow">Tradução Orçamentária Cidadã · Horizonte de 60 Meses (5 Anos)</span>
-          <h3>O que o Excesso Detectado pela Rede Neural Financiaria no Brasil</h3>
+    <!-- ================= ABA 3: FICHA TÉCNICA ================= -->
+    <section id="tab-tecnica" role="tabpanel" aria-labelledby="btn-tab-tecnica" class="tab-panel" hidden>
+      <div class="surface-card section-card">
+        <div class="card-head">
+          <div>
+            <span class="tech-badge">Avaliação acadêmica · 2º bimestre</span>
+            <h2>Rede Neural Multilayer Perceptron (<code>NnModel</code>)</h2>
+            <p class="card-subtitle">Construída do zero em Python/NumPy e treinada localmente em CPU sobre dados públicos da Câmara e do Senado.</p>
+          </div>
         </div>
-        <span class="badge-code">Fontes: FNDE/MEC · DataSUS/SIGTAP · DIEESE · SENASP</span>
-      </div>
-      <div class="impact-cards-grid" id="impact-cards-grid"></div>
-    </section>
-
-    <!-- Tabela Responsiva de Notas Fiscais Auditadas -->
-    <section class="panel-card section-block" id="auditoria-notas">
-      <div class="panel-header">
-        <div>
-          <span class="section-eyebrow">Conjunto de Teste Auditado pela Rede Neural</span>
-          <h3>Notas Fiscais Reais da Câmara dos Deputados (CEAP)</h3>
-        </div>
-        <div class="filter-bar">
-          <select id="filter-status" aria-label="Filtrar por classificação da rede neural">
-            <option value="all">Todas as Classificações</option>
-            <option value="1" selected>Apenas Atípicos / Suspeitos (Classe 1)</option>
-            <option value="0">Apenas Normais (Classe 0)</option>
-          </select>
-          <select id="filter-uf" aria-label="Filtrar por UF">
-            <option value="all">Todas as UFs</option>
-          </select>
-          <input type="search" id="filter-search" placeholder="Buscar deputado, fornecedor ou CNPJ..." aria-label="Buscar parlamentar ou fornecedor" />
+        <div class="tech-kpi-grid">
+          <div class="tech-metric-box"><span>Arquitetura</span><strong>5 → 16 (tanh) → 2</strong><small>Softmax + Cross-Entropy</small></div>
+          <div class="tech-metric-box"><span>Queda do erro</span><strong id="tech-loss">—</strong><small>2.000 épocas · lr = 0.05</small></div>
+          <div class="tech-metric-box"><span>Acurácia no teste</span><strong id="tech-acc">—</strong><small id="tech-prec-rec">—</small></div>
+          <div class="tech-metric-box"><span>Matriz de confusão</span><strong id="tech-confusion">—</strong><small id="tech-confusion-fp">—</small></div>
         </div>
       </div>
 
-      <!-- Implementação seguindo o guia responsive-table (modern-web-guidance) -->
-      <div tabindex="0" role="region" aria-labelledby="audit-table-caption" class="table-wrapper">
-        <table id="audit-table">
-          <caption id="audit-table-caption" class="sr-only">
-            Notas fiscais parlamentares da CEAP auditadas pela Rede Neural Multilayer Perceptron
-          </caption>
-          <thead>
-            <tr>
-              <th scope="col">Parlamentar (Partido-UF)</th>
-              <th scope="col">Categoria da Despesa</th>
-              <th scope="col">Fornecedor &amp; CNPJ</th>
-              <th scope="col">Valor Líquido</th>
-              <th scope="col">Base da Categoria</th>
-              <th scope="col">Projeção 5 Anos</th>
-              <th scope="col">Equivalência Social</th>
-              <th scope="col">Parecer NnModel</th>
-              <th scope="col">Nota Oficial</th>
-            </tr>
-          </thead>
-          <tbody id="audit-tbody"></tbody>
-        </table>
+      <div class="charts-grid">
+        <article class="surface-card section-card">
+          <div class="card-head">
+            <div>
+              <h3>Simulador de inferência</h3>
+              <p class="card-subtitle">Pesos treinados <code>W1, b1, W2, b2</code> executados no navegador</p>
+            </div>
+          </div>
+          <form id="sim-form" class="sim-form">
+            <div class="sim-form-grid">
+              <label for="sim-valor">Valor líquido (R$)<input type="number" id="sim-valor" step="50" min="10" max="150000" value="9500" /></label>
+              <label for="sim-categoria">Categoria<select id="sim-categoria"></select></label>
+              <label for="sim-mes">Mês<input type="number" id="sim-mes" min="1" max="12" value="8" /></label>
+              <label for="sim-partido">Partido<select id="sim-partido"></select></label>
+              <label for="sim-uf">UF<select id="sim-uf"></select></label>
+            </div>
+          </form>
+          <div class="sim-result-box">
+            <div class="sim-result-top">
+              <div><span class="sim-small-label">Saída da rede</span><h4 id="sim-verdict">—</h4></div>
+              <div class="sim-prob-right"><span class="sim-small-label">P(classe 1)</span><strong id="sim-prob" class="mono">—</strong></div>
+            </div>
+            <div class="prob-bar-track"><div id="sim-prob-bar" class="prob-bar-fill"></div></div>
+            <p id="sim-impact-preview" class="sim-impact-text"></p>
+            <div class="neurons-wrap">
+              <span class="sim-small-label">Ativações ocultas <code>a1 = tanh(X·W1 + b1)</code></span>
+              <div id="neurons-grid" class="neurons-grid"></div>
+            </div>
+          </div>
+        </article>
+
+        <article class="surface-card section-card">
+          <div class="card-head">
+            <div>
+              <h3>Curva de aprendizado e equações</h3>
+              <p class="card-subtitle">Gerado por <code>src/nn_model.py</code></p>
+            </div>
+          </div>
+          <figure class="chart-figure">
+            <img src="/data/loss_curve.png" alt="Curva de aprendizado: queda da Cross-Entropy Loss e aumento da acurácia ao longo das épocas" class="loss-chart-img" loading="lazy" />
+          </figure>
+          <div class="math-list">
+            <div class="math-box"><strong>Normalização Z-Score</strong><code>X_norm = (X - mean) / (std + 1e-8)</code></div>
+            <div class="math-box"><strong>Ativação customizada (tanh)</strong><code>a1 = np.tanh(np.dot(X_norm, W1) + b1)</code></div>
+            <div class="math-box"><strong>Derivada no backpropagation</strong><code>delta1 = np.dot(delta2, W2.T) * (1 - a1**2)</code></div>
+          </div>
+        </article>
       </div>
     </section>
   </main>
 
-  <footer class="footer">
+  <footer class="site-footer">
     <div class="container footer-inner">
-      <p>
-        <strong>OlhoCidadão</strong> — Projeto Acadêmico de Redes Neurais &amp; Transparência Pública Brasileira · Execução 100% CPU Local (Python/NumPy + Vite/pnpm).
-      </p>
+      <span><strong>OlhoCidadão</strong> — Transparência de Deputados Federais e Senadores</span>
+      <span>Fontes: Câmara dos Deputados · Senado Federal (CEAPS) · Tesouro Nacional · IBGE</span>
     </div>
   </footer>
+
+  <button type="button" id="btn-back-top" class="back-top" aria-label="Voltar ao topo" hidden>
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m18 15-6-6-6 6"/></svg>
+  </button>
+
+  <div id="toast" class="toast" role="status" aria-live="polite" hidden></div>
+
+  <!-- Diálogo: detalhes da nota -->
+  <dialog id="dlg-detail" class="app-dialog" closedby="any" aria-labelledby="dlg-detail-title">
+    <div class="dialog-head">
+      <h2 id="dlg-detail-title">Detalhes da nota</h2>
+      <form method="dialog"><button class="icon-btn" aria-label="Fechar">✕</button></form>
+    </div>
+    <div id="dlg-detail-body" class="dialog-body"></div>
+  </dialog>
+
+  <!-- Diálogo: ajuda -->
+  <dialog id="dlg-help" class="app-dialog" closedby="any" aria-labelledby="dlg-help-title">
+    <div class="dialog-head">
+      <h2 id="dlg-help-title">Como usar o OlhoCidadão</h2>
+      <form method="dialog"><button class="icon-btn" aria-label="Fechar">✕</button></form>
+    </div>
+    <div class="dialog-body help-body">
+      <h3>O que são esses dados?</h3>
+      <p>São os reembolsos da <strong>Cota Parlamentar</strong> (CEAP na Câmara, CEAPS no Senado): dinheiro público usado por deputados e senadores para custear passagens, escritório, combustível, divulgação, alimentação e outras despesas do mandato.</p>
+      <h3>O que significa "alerta"?</h3>
+      <p>Uma rede neural compara cada nota com o padrão histórico da mesma categoria de despesa. Quando o valor fica muito acima do comum, a nota recebe um <strong>alerta</strong>. Isso <em>não</em> é acusação de irregularidade — é um sinal para olhar com mais atenção.</p>
+      <h3>Dicas rápidas</h3>
+      <ul>
+        <li>Pressione <kbd>/</kbd> para ir direto à busca.</li>
+        <li>Clique em meses, categorias e rankings para filtrar.</li>
+        <li><strong>Compartilhar</strong> copia um link com os filtros atuais.</li>
+        <li><strong>Exportar CSV</strong> baixa as notas do filtro para abrir no Excel.</li>
+      </ul>
+    </div>
+  </dialog>
+
+  <!-- Diálogo: preferências -->
+  <dialog id="dlg-settings" class="app-dialog dialog-sm" closedby="any" aria-labelledby="dlg-settings-title">
+    <div class="dialog-head">
+      <h2 id="dlg-settings-title">Preferências</h2>
+      <form method="dialog"><button class="icon-btn" aria-label="Fechar">✕</button></form>
+    </div>
+    <div class="dialog-body">
+      <fieldset class="settings-group">
+        <legend>Tema</legend>
+        <label class="radio-row"><input type="radio" name="theme" value="dark" /> Escuro (padrão)</label>
+        <label class="radio-row"><input type="radio" name="theme" value="light" /> Claro</label>
+        <label class="radio-row"><input type="radio" name="theme" value="light dark" /> <span id="theme-system-label">Seguir o sistema</span></label>
+      </fieldset>
+      <fieldset class="settings-group">
+        <legend>Tabela</legend>
+        <label class="radio-row" for="pref-page-size">Notas por página
+          <select id="pref-page-size">
+            <option value="15">15</option>
+            <option value="30">30</option>
+            <option value="60">60</option>
+          </select>
+        </label>
+      </fieldset>
+    </div>
+  </dialog>
 
   <script type="module" src="/web/app.js"></script>
 </body>
