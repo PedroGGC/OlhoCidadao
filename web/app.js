@@ -1,3 +1,5 @@
+import { filterWorks, cityOptions, workMunicipalities, comparisonValue } from './works.js';
+import { decodeRecords, loadDashboardData, loadSummary, pickFilterColumns } from './dataset.js';
 /* =========================================================================
    OlhoCidadão — Portal de consulta de gastos de Deputados e Senadores
    ========================================================================= */
@@ -25,6 +27,12 @@ const FILTERS = [
   { id: 'f-mes', key: 'mes', param: 'mes' },
   { id: 'f-categoria', key: 'categoria', param: 'despesa' },
   { id: 'f-alerta', key: 'alerta', param: 'alerta' },
+  { id: 'f-obra-uf', key: 'ufObra', param: 'ufObra', defaultValue: 'recorte' },
+  { id: 'f-obra-cidade', key: 'cidadeObra', param: 'cidade' },
+  { id: 'f-obra-tipo', key: 'tipoObra', param: 'tipoObra', defaultValue: 'oficial' },
+  { id: 'f-obra-ano', key: 'anoObra', param: 'anoObra' },
+  { id: 'f-obra-setor', key: 'setorObra', param: 'setorObra' },
+  { id: 'f-obra-status', key: 'statusObra', param: 'statusObra' },
 ];
 
 const STORAGE_PAGE = 'olho-page-size';
@@ -37,8 +45,16 @@ const state = {
   rankMode: 'parlamentar',
   page: 1,
   pageSize: 30,
+  worksLimit: 18,
   sort: { key: null, dir: 'desc' },
   mediaGlobal: 0,
+  worker: null,
+  otherYearRows: null,
+  noMonthRows: null,
+  maxMonthByYear: {},
+  people: [],
+  searchDirty: false, // texto digitado ainda não confirmado (Enter ou sugestão)
+  committedBusca: '',
 };
 
 const $ = (id) => document.getElementById(id);
@@ -199,6 +215,136 @@ function setupSettings() {
 }
 
 /* -------------------------------------------------------------------------
+   Autocompletar de parlamentares (busca sem acento e por várias palavras)
+   ------------------------------------------------------------------------- */
+const norm = (value) => String(value ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+
+function buildPeopleIndex() {
+  const map = new Map();
+  for (const r of state.all) {
+    let p = map.get(r.nomeParlamentar);
+    if (!p) {
+      p = { nome: r.nomeParlamentar, key: norm(r.nomeParlamentar), partido: r.siglaPartido, uf: r.siglaUF,
+        cargo: r.cargo, foto: r.urlFoto, n: 0 };
+      map.set(r.nomeParlamentar, p);
+    }
+    p.n += 1;
+  }
+  state.people = Array.from(map.values());
+}
+
+function suggestPeople(query, limit = 8) {
+  const tokens = norm(query).split(/\s+/).filter(Boolean);
+  if (!tokens.length || norm(query).trim().length < 2) return [];
+  const rank = (p) => {
+    if (p.key.startsWith(tokens[0])) return 0;
+    return p.key.split(' ').some((w) => w.startsWith(tokens[0])) ? 1 : 2;
+  };
+  return state.people
+    .filter((p) => tokens.every((t) => p.key.includes(t)))
+    .sort((a, b) => rank(a) - rank(b) || b.n - a.n || a.nome.localeCompare(b.nome, 'pt-BR'))
+    .slice(0, limit);
+}
+
+function highlightName(name, query) {
+  const token = norm(query).split(/\s+/).filter(Boolean)[0];
+  const normalized = norm(name);
+  const at = token && normalized.length === name.length ? normalized.indexOf(token) : -1;
+  if (at < 0) return esc(name);
+  return `${esc(name.slice(0, at))}<mark>${esc(name.slice(at, at + token.length))}</mark>${esc(name.slice(at + token.length))}`;
+}
+
+const suggest = { items: [], active: -1 };
+
+function closeSuggest() {
+  $('search-suggest').hidden = true;
+  $('f-busca').setAttribute('aria-expanded', 'false');
+  $('f-busca').removeAttribute('aria-activedescendant');
+  suggest.active = -1;
+}
+
+function setActiveSuggest(index) {
+  const options = $('search-suggest').querySelectorAll('.suggest-item');
+  if (!options.length) return;
+  suggest.active = (index + options.length) % options.length;
+  options.forEach((el, i) => el.setAttribute('aria-selected', String(i === suggest.active)));
+  const el = options[suggest.active];
+  $('f-busca').setAttribute('aria-activedescendant', el.id);
+  el.scrollIntoView({ block: 'nearest' });
+}
+
+function renderSuggest() {
+  const query = $('f-busca').value;
+  suggest.items = suggestPeople(query);
+  const list = $('search-suggest');
+  if (!suggest.items.length) { closeSuggest(); return; }
+  list.innerHTML = suggest.items.map((p, i) => {
+    const cargo = p.cargo === 'SENADOR DA REPÚBLICA' ? 'Senador(a)' : 'Deputado(a) Federal';
+    const foto = p.foto && p.foto.startsWith('http') ? p.foto : AVATAR_FALLBACK;
+    return `<li class="suggest-item" role="option" id="suggest-${i}" data-index="${i}" aria-selected="false">
+      <img src="${esc(foto)}" alt="" loading="lazy" decoding="async" width="34" height="34" />
+      <span><span class="suggest-name">${highlightName(p.nome, query)}</span>
+      <span class="suggest-meta">${cargo} · ${esc(p.partido)} · ${esc(p.uf)} · ${intFmt.format(p.n)} notas</span></span></li>`;
+  }).join('') + '<li class="suggest-foot" role="presentation">Enter sem seleção busca o termo em notas e fornecedores</li>';
+  list.querySelectorAll('img').forEach((img) => img.addEventListener('error', () => { img.src = AVATAR_FALLBACK; }, { once: true }));
+  list.hidden = false;
+  $('f-busca').setAttribute('aria-expanded', 'true');
+  suggest.active = -1;
+}
+
+function chooseSuggestion(index) {
+  const person = suggest.items[index];
+  if (!person) return;
+  $('f-busca').value = '';
+  state.searchDirty = false;
+  closeSuggest();
+  setFilterValue('parlamentar', person.nome);
+  applyFilters();
+  window.scrollTo({ top: 0, behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
+}
+
+function setupSuggest() {
+  const input = $('f-busca');
+  const list = $('search-suggest');
+  input.addEventListener('input', () => {
+    // Digitar só atualiza as sugestões; o filtro permanece como estava.
+    state.searchDirty = input.value !== state.committedBusca;
+    if (!input.value.trim()) {
+      closeSuggest();
+      // Limpar o campo (ex.: botão X) remove a busca confirmada.
+      if (state.committedBusca) { state.searchDirty = false; applyFilters(); }
+      return;
+    }
+    renderSuggest();
+  });
+  input.addEventListener('focus', () => { if (input.value.trim()) renderSuggest(); });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && (list.hidden || suggest.active < 0)) {
+      // Enter sem escolher sugestão: confirma a busca livre por termo.
+      e.preventDefault();
+      state.searchDirty = false;
+      closeSuggest();
+      applyFilters();
+      return;
+    }
+    if (list.hidden) return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); setActiveSuggest(suggest.active + 1); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); setActiveSuggest(suggest.active - 1); }
+    else if (e.key === 'Enter' && suggest.active >= 0) { e.preventDefault(); chooseSuggestion(suggest.active); }
+    else if (e.key === 'Escape') { e.stopPropagation(); closeSuggest(); }
+  });
+  // mousedown evita que o blur do input feche a lista antes do clique
+  list.addEventListener('mousedown', (e) => {
+    const item = e.target.closest('.suggest-item');
+    if (!item) return;
+    e.preventDefault();
+    chooseSuggestion(Number(item.dataset.index));
+  });
+  document.addEventListener('click', (e) => { if (!e.target.closest('.search-field-wrap')) closeSuggest(); });
+  input.addEventListener('blur', () => setTimeout(closeSuggest, 120));
+}
+
+/* -------------------------------------------------------------------------
    Filtros
    ------------------------------------------------------------------------- */
 function populateFilterOptions(records) {
@@ -218,7 +364,6 @@ function populateFilterOptions(records) {
   const sortedParl = Array.from(parl.entries()).sort((a, b) => a[0].localeCompare(b[0], 'pt-BR'));
   $('f-parlamentar').innerHTML = `<option value="all">Todos os parlamentares (${sortedParl.length})</option>`
     + sortedParl.map(([v, l]) => `<option value="${esc(v)}">${esc(l)}</option>`).join('');
-  $('dl-busca').innerHTML = sortedParl.map(([v]) => `<option value="${esc(v)}"></option>`).join('');
 
   const fill = (id, set, label) => {
     $(id).innerHTML = `<option value="all">${label}</option>`
@@ -228,6 +373,17 @@ function populateFilterOptions(records) {
   fill('f-uf', ufs, 'Todos');
   fill('f-partido', partidos, 'Todos');
   fill('f-categoria', cats, 'Todas');
+
+  const obras = state.data?.obrasProjetos || [];
+  const setores = new Set(obras.map((o) => o.setor).filter(Boolean));
+  fill('f-obra-setor', setores, 'Todos os setores');
+  fill('f-obra-status', new Set(obras.map((o) => o.situacao).filter(Boolean)), 'Todas as situações');
+  const ufSelect = $('f-obra-uf');
+  ufSelect.innerHTML = '<option value="recorte">Estado do recorte parlamentar</option><option value="all">Todos os estados</option>'
+    + [...ufs].sort().map((uf) => `<option value="${uf}">${uf}</option>`).join('');
+  fill('f-obra-ano', new Set(obras.filter((o) => o.tipoRegistro === 'oficial' && o.ano > 0).map((o) => String(o.ano))), 'Todos os anos de cadastro');
+  updateWorkCities();
+
 }
 
 function getFilterState() {
@@ -235,7 +391,11 @@ function getFilterState() {
   FILTERS.forEach(({ id, key, type }) => {
     const el = $(id);
     if (type === 'check') f[key] = el.checked;
-    else if (type === 'text') f[key] = el.value.trim().toLowerCase();
+    else if (type === 'text') {
+      // Enquanto o usuário digita, vale o último texto confirmado.
+      if (!state.searchDirty) state.committedBusca = el.value;
+      f[key] = norm(state.committedBusca).trim();
+    }
     else f[key] = el.value;
   });
   return f;
@@ -247,16 +407,23 @@ function setFilterValue(key, value) {
   const el = $(def.id);
   if (def.type === 'check') el.checked = Boolean(value);
   else el.value = value;
+  if (def.type === 'text') state.searchDirty = false;
 }
 
 function resetFilters() {
-  FILTERS.forEach(({ id, type }) => {
+  FILTERS.forEach(({ id, type, defaultValue }) => {
     const el = $(id);
     if (type === 'check') el.checked = false;
     else if (type === 'text') el.value = '';
-    else el.value = 'all';
+    else el.value = defaultValue || 'all';
   });
+  state.searchDirty = false;
   applyFilters();
+}
+
+/** Texto de busca montado sob demanda (não é mantido em memória para cada nota). */
+function searchText(r) {
+  return norm(`${r.nomeParlamentar} ${r.siglaPartido} ${r.siglaUF} ${r.nomeFornecedor} ${r.cnpjCpfFornecedor} ${r.tipoDespesa}`);
 }
 
 function matchRecord(r, f) {
@@ -269,7 +436,10 @@ function matchRecord(r, f) {
   if (f.mes !== 'all' && String(r.mes) !== f.mes) return false;
   if (f.categoria !== 'all' && r.tipoDespesa !== f.categoria) return false;
   if (f.alerta !== 'all' && String(r.classePredita) !== f.alerta) return false;
-  if (f.busca && !r._search.includes(f.busca)) return false;
+  if (f.busca) {
+    const text = searchText(r);
+    if (!f.busca.split(/\s+/).every((t) => text.includes(t))) return false;
+  }
   return true;
 }
 
@@ -332,11 +502,12 @@ function syncUrl(f) {
 function restoreFromUrl() {
   const params = new URLSearchParams(location.search);
   FILTERS.forEach(({ id, param, type }) => {
+    if (id === 'f-obra-cidade') updateWorkCities();
     if (!params.has(param)) return;
     const el = $(id);
     const v = params.get(param);
     if (type === 'check') el.checked = v === '1';
-    else if (type === 'text') el.value = v;
+    else if (type === 'text') { el.value = v; state.searchDirty = false; }
     else if (Array.from(el.options).some((o) => o.value === v)) el.value = v;
   });
 }
@@ -360,7 +531,7 @@ function renderProfile(f, rows) {
   banner.hidden = false;
   banner.innerHTML = `
     <div class="profile-left">
-      <img src="${esc(avatar)}" alt="Foto de ${esc(s.nomeParlamentar)}" class="profile-avatar" loading="lazy" />
+      <img src="${esc(avatar)}" alt="Foto de ${esc(s.nomeParlamentar)}" class="profile-avatar" loading="lazy" decoding="async" />
       <div>
         <h2 class="profile-name">${esc(s.nomeParlamentar)}</h2>
         <div class="profile-meta">
@@ -385,6 +556,37 @@ function topEntry(rows, keyFn) {
   return Array.from(m.entries()).sort((a, b) => b[1] - a[1])[0] || ['—', 0];
 }
 
+function targetWorkUF(f, rows = state.filtered) {
+  if (f.ufObra && f.ufObra !== 'recorte') return f.ufObra;
+  if (f.uf !== 'all') return f.uf;
+  if (f.parlamentar !== 'all') {
+    const person = rows.find((row) => row.nomeParlamentar === f.parlamentar)
+      || state.all.find((row) => row.nomeParlamentar === f.parlamentar);
+    if (person) return person.siglaUF;
+  }
+  return 'all';
+}
+
+function updateWorkCities() {
+  const f = getFilterState();
+  const current = $('f-obra-cidade').value;
+  const cities = cityOptions(state.data?.obrasProjetos || [], targetWorkUF(f));
+  $('f-obra-cidade').innerHTML = `<option value="all">Todas as cidades (${cities.length})</option>`
+    + cities.map((city) => `<option value="${esc(city.codigoIBGE)}">${esc(city.nome)} / ${esc(city.uf)}</option>`).join('');
+  if (cities.some((city) => city.codigoIBGE === current)) $('f-obra-cidade').value = current;
+}
+
+function getMatchingObras(f, rows) {
+  const list = filterWorks(state.data?.obrasProjetos || [], {
+    uf: targetWorkUF(f, rows), city: f.cidadeObra, type: f.tipoObra,
+    year: f.anoObra, sector: f.setorObra, status: f.statusObra,
+  });
+  return f.regiao !== 'all' && targetWorkUF(f, rows) === 'all'
+    ? list.filter((work) => work.regiao === f.regiao) : list;
+}
+
+function custo(key) { return state.data.custosReferencia[key]; }
+
 function renderKpisAndInsight(f, rows) {
   const total = rows.reduce((a, r) => a + r.valorLiquido, 0);
   const n = rows.length;
@@ -392,8 +594,10 @@ function renderKpisAndInsight(f, rows) {
   const pessoas = new Set(rows.map((r) => r.nomeParlamentar)).size;
   const alertas = rows.filter((r) => r.classePredita === 1);
   const excesso = alertas.reduce((a, r) => a + r.excessoMensal, 0);
-  const impacto = alertas.reduce((a, r) => a + r.impacto5Anos, 0);
-  const merendas = Math.floor(impacto / 1.5);
+
+  const obrasPeriodo = getMatchingObras(f, rows);
+  const obrasCobertas = obrasPeriodo.filter((o) => comparisonValue(o) != null && excesso >= o.valorTotalObra).length;
+  const paralisadas = obrasPeriodo.filter((o) => o.situacao.includes('Paralisada'));
 
   $('kpi-total-gasto').textContent = brl.format(total);
   $('kpi-total-notas').textContent = `${intFmt.format(n)} notas fiscais`;
@@ -401,16 +605,27 @@ function renderKpisAndInsight(f, rows) {
   $('kpi-total-parlamentares').textContent = `${intFmt.format(pessoas)} parlamentar(es)`;
   $('kpi-total-atipicos').textContent = `${intFmt.format(alertas.length)} notas`;
   $('kpi-excesso-mensal').textContent = n
-    ? `${((alertas.length / n) * 100).toFixed(1)}% do recorte · excesso de ${brl.format(excesso)}`
+    ? `${((alertas.length / n) * 100).toFixed(1)}% das notas do recorte`
     : '—';
-  $('kpi-equiv-merendas').textContent = intFmt.format(merendas);
+  $('kpi-excesso-periodo').textContent = brl.format(excesso);
+  if (!excesso) {
+    $('kpi-obras-cobertas').textContent = 'Sem excesso acima do padrão no período';
+  } else if (obrasCobertas > 0) {
+    $('kpi-obras-cobertas').textContent = `Cobre o investimento de ${intFmt.format(obrasCobertas)} projetos (comparados individualmente)`;
+  } else if (obrasPeriodo.some((o) => comparisonValue(o) != null)) {
+    const menorAporte = obrasPeriodo.reduce((minimum, o) => comparisonValue(o) != null ? Math.min(minimum, o.valorTotalObra) : minimum, Infinity);
+    const pct = Math.min(99, Math.max(1, (excesso / menorAporte) * 100));
+    $('kpi-obras-cobertas').textContent = `Equivale a ${pct.toFixed(0)}% do custo estimado de uma intervenção`;
+  } else {
+    $('kpi-obras-cobertas').textContent = 'Valor excedente apurado no recorte';
+  }
 
   // Comparação com o outro ano disponível (mesmos filtros)
   const deltaEl = $('kpi-delta');
   if (f.ano !== 'all') {
     const outro = f.ano === '2026' ? '2025' : '2026';
-    const totalOutro = state.all
-      .filter((r) => matchRecord(r, { ...f, ano: outro }))
+    const totalOutro = (state.otherYearRows
+      ?? state.all.filter((r) => matchRecord(r, { ...f, ano: outro })))
       .reduce((a, r) => a + r.valorLiquido, 0);
     if (totalOutro > 0) {
       const delta = ((total - totalOutro) / totalOutro) * 100;
@@ -425,10 +640,15 @@ function renderKpisAndInsight(f, rows) {
   }
 
   const scope = scopeDescription(f);
+  const isMensal = f.mes !== 'all' || (excesso > 0 && excesso < 120000);
   $('ai-context-tag').textContent = scope;
   $('impact-scope-label').textContent = scope;
-  $('impact-total-5y').textContent = brl.format(impacto);
-  renderImpactCards(impacto);
+  $('impact-scale-label').textContent = isMensal
+    ? 'comparação em escala mensal / custeio direto'
+    : 'comparação em escala anual / obras e equipamentos';
+  $('impact-total-periodo').textContent = brl.format(excesso);
+  renderImpactCards(excesso, isMensal);
+  renderObrasGrid(excesso, f, rows);
 
   const body = $('ai-insight-body');
   if (!n) {
@@ -439,7 +659,7 @@ function renderKpisAndInsight(f, rows) {
   const [topCat, topCatVal] = topEntry(rows, (r) => r.tipoDespesa);
   const [topForn, topFornVal] = topEntry(rows, (r) => r.nomeFornecedor);
   const [topUF] = topEntry(rows, (r) => r.siglaUF);
-  const [topPart, topPartVal] = topEntry(rows, (r) => r.siglaPartido);
+  const [topPart, topPartVal] = topEntry(rows.filter((r) => r.siglaPartido !== 'N/I'), (r) => r.siglaPartido);
 
   const diff = state.mediaGlobal ? ((media - state.mediaGlobal) / state.mediaGlobal) * 100 : 0;
   const comparativo = Math.abs(diff) < 5
@@ -450,52 +670,127 @@ function renderKpisAndInsight(f, rows) {
   let contexto;
   if (f.parlamentar !== 'all') {
     contexto = `<p><strong>${esc(f.parlamentar)}</strong> registrou <strong>${intFmt.format(n)} notas</strong> somando
-      <strong>${brl.format(total)}</strong>. O valor médio por nota está ${comparativo}.
+      <strong>${brl.format(total)}</strong> no período selecionado. O valor médio por nota está ${comparativo}.
       A maior parte foi para <strong>${esc(topCat.toLowerCase())}</strong> (${pctCat}% do total), e o fornecedor que mais recebeu foi
       <strong>${esc(topForn)}</strong> (${brl.format(topFornVal)}).</p>`;
   } else if (f.partido !== 'all' || f.uf !== 'all' || f.regiao !== 'all' || f.cargo !== 'all') {
     contexto = `<p>Neste recorte (<strong>${esc(scope)}</strong>) há <strong>${intFmt.format(pessoas)} parlamentares</strong> e
       <strong>${intFmt.format(n)} notas</strong>, totalizando <strong>${brl.format(total)}</strong>. O valor médio por nota está ${comparativo}.
       A principal despesa é <strong>${esc(topCat.toLowerCase())}</strong> (${pctCat}%), com maior concentração em
-      <strong>${esc(topUF)}</strong> e no partido <strong>${esc(topPart)}</strong>.</p>`;
+      <strong>${esc(topUF)}</strong> e, entre as legendas informadas, no partido <strong>${esc(topPart || "não informado")}</strong>.</p>`;
   } else {
-    contexto = `<p>Somando Câmara e Senado, a amostra consultada reúne <strong>${intFmt.format(pessoas)} parlamentares</strong> e
+    contexto = `<p>Somando Câmara e Senado neste período, a consulta reúne <strong>${intFmt.format(pessoas)} parlamentares</strong> e
       <strong>${brl.format(total)}</strong> em <strong>${intFmt.format(n)} notas</strong>. A despesa de maior peso é
-      <strong>${esc(topCat.toLowerCase())}</strong> (${pctCat}%). O partido com maior volume é <strong>${esc(topPart)}</strong>
+      <strong>${esc(topCat.toLowerCase())}</strong> (${pctCat}%). Entre as legendas informadas, o maior volume é do partido <strong>${esc(topPart)}</strong>
       (${brl.format(topPartVal)}) e o estado com maior concentração é <strong>${esc(topUF)}</strong>.</p>`;
   }
 
-  const ia = alertas.length
-    ? `<p>A IA sinalizou <strong>${intFmt.format(alertas.length)} notas</strong> bem acima do padrão da própria categoria
-      (excesso de <strong>${brl.format(excesso)}</strong>). Se isso se repetisse por 5 anos, o valor pagaria
-      <strong>${intFmt.format(merendas)} merendas escolares</strong> ou <strong>${intFmt.format(Math.floor(impacto / 65))} consultas no SUS</strong>.
-      Alertas não são acusação — são um convite para conferir a nota.</p>`
-    : '<p>Nenhuma nota deste recorte ficou acima do padrão histórico da sua categoria.</p>';
+  let ia;
+  if (alertas.length) {
+    // Descobre qual UF concentrou o maior volume de excesso nas notas com alerta do filtro atual
+    const [ufMaiorExcesso] = topEntry(alertas, (r) => r.siglaUF);
+    const ufAlvo = f.uf !== 'all' ? f.uf : (f.parlamentar !== 'all' && rows.length ? rows[0].siglaUF : ufMaiorExcesso);
 
-  body.innerHTML = contexto + ia;
+    // Filtra obras da UF principal do recorte; se "Todos os anos" estiver ativo, prioriza as mais atuais (2026)
+    let candidatas = obrasPeriodo.filter((o) => o.uf === ufAlvo);
+    if (!candidatas.length) candidatas = obrasPeriodo;
+    if (f.ano === 'all') {
+      const atuais2026 = candidatas.filter((o) => o.ano === 2026);
+      if (atuais2026.length) candidatas = atuais2026;
+    }
+
+    // Escolhe de forma determinística a obra cujo aporte/custo melhor se compara ao excesso do período
+    // priorizando obras reais do ObrasGov.br ("OG-") e obras paralisadas/em andamento
+    const ordenadas = [...candidatas].sort((a, b) => {
+      const aOg = String(a.codigoObra || '').startsWith('OG-') ? 1 : 0;
+      const bOg = String(b.codigoObra || '').startsWith('OG-') ? 1 : 0;
+      if (aOg !== bOg) return bOg - aOg;
+      const distA = Math.abs(a.aporteNecessarioPeriodo - excesso);
+      const distB = Math.abs(b.aporteNecessarioPeriodo - excesso);
+      return distA - distB;
+    });
+
+    const obraDestaque = ordenadas.find((o) => comparisonValue(o) != null);
+    const trechoObra = obraDestaque
+      ? ` No cadastro ${obraDestaque.tipoRegistro === 'oficial' ? 'oficial do ObrasGov' : 'de referências'},
+          <em>${esc(obraDestaque.titulo)}</em>, em <strong>${esc(obraDestaque.municipio)}</strong>,
+          tem ${obraDestaque.tipoRegistro === 'oficial' ? 'investimento previsto publicado' : 'custo estimado'} de
+          <strong>${brl.format(obraDestaque.valorTotalObra)}</strong>.
+          O excedente do recorte parlamentar equivale a <strong>${(excesso / obraDestaque.valorTotalObra).toFixed(1)}×</strong>
+          esse valor. Esta comparação não vincula a nota parlamentar ao financiamento da obra.`
+      : '';
+    const multiSetor = isMensal
+      ? `Nesse recorte mensal, o valor custearia <strong>${intFmt.format(Math.max(0, Math.floor(excesso / custo('consulta_atencao_basica'))))} atendimentos no SUS</strong> (Saúde),
+         <strong>${intFmt.format(Math.max(0, Math.floor(excesso / custo('aluno_mes_fundeb'))))} aluno-mês de referência FUNDEB</strong> (Educação) ou
+         <strong>${intFmt.format(Math.max(0, Math.floor(excesso / custo('equipamento_seguranca_uf'))))} diárias de patrulhamento e proteção</strong> (Segurança).`
+      : `No acumulado do período, esse montante financiaria <strong>${intFmt.format(Math.max(0, Math.floor(excesso / custo('reforma_ubs'))))} reformas de UBS de referência</strong> (Saúde),
+         <strong>${intFmt.format(Math.max(0, Math.floor(excesso / custo('climatizacao_escola'))))} climatizações escolares de referência</strong> (Educação) ou
+         <strong>${intFmt.format(Math.max(0, Math.floor(excesso / custo('pavimentacao_vias'))))} trechos de pavimentação de referência</strong> (Infraestrutura).`;
+    ia = `<p>A Rede Neural sinalizou <strong>${intFmt.format(alertas.length)} notas</strong> potencialmente atípicas, somando um
+      excedente estatístico de <strong>${brl.format(excesso)}</strong> no período. ${multiSetor}${trechoObra}</p>`;
+  } else {
+    ia = '<p>Nenhuma nota deste recorte ficou acima do padrão estatístico da sua categoria.</p>';
+  }
+
+  body.innerHTML = contexto + ia + '<p class="footnote">Base integral de despesas positivas publicadas em 2025–2026; estornos negativos não entram na soma. Alertas são estatísticos e não comprovam irregularidade. Equivalências sociais usam custos de referência.</p>';
 }
 
 /* -------------------------------------------------------------------------
    Gráficos
    ------------------------------------------------------------------------- */
+function maxMonthForYear(ano) {
+  if (ano === 'all') return 12;
+  const maxM = state.maxMonthByYear[String(ano)] || 0;
+  return maxM > 0 ? maxM : (String(ano) === '2026' ? 10 : 12);
+}
+
+function syncMonthSelectForYear(ano) {
+  const maxM = maxMonthForYear(ano);
+  const mesSelect = $('f-mes');
+  if (!mesSelect) return;
+  Array.from(mesSelect.options).forEach((opt) => {
+    if (opt.value === 'all') return;
+    const m = Number(opt.value);
+    opt.hidden = m > maxM;
+    opt.disabled = m > maxM;
+  });
+  if (mesSelect.value !== 'all' && Number(mesSelect.value) > maxM) {
+    mesSelect.value = 'all';
+  }
+}
+
 function renderMonthly(rows, f) {
-  const normal = new Array(12).fill(0);
-  const alert = new Array(12).fill(0);
-  rows.forEach((r) => {
-    const i = Math.min(11, Math.max(0, r.mes - 1));
+  const maxMonth = maxMonthForYear(f.ano);
+  const baseRows = f.mes === 'all'
+    ? rows
+    : (state.noMonthRows ?? state.all.filter((r) => matchRecord(r, { ...f, mes: 'all' })));
+
+  const normal = new Array(maxMonth).fill(0);
+  const alert = new Array(maxMonth).fill(0);
+  baseRows.forEach((r) => {
+    const i = r.mes - 1;
+    if (i < 0 || i >= maxMonth) return;
     if (r.classePredita === 1) alert[i] += r.valorLiquido;
     else normal[i] += r.valorLiquido;
   });
   const totals = normal.map((v, i) => v + alert[i]);
   const max = Math.max(...totals, 1);
 
-  $('chart-monthly').innerHTML = MESES_CURTOS.map((label, i) => {
+  const container = $('chart-monthly');
+  container.style.setProperty('--month-cols', String(maxMonth));
+
+  const mesesVisiveis = MESES_CURTOS.slice(0, maxMonth);
+  container.innerHTML = mesesVisiveis.map((label, i) => {
     const selected = f.mes === String(i + 1);
+    const dimmed = f.mes !== 'all' && !selected;
+    const valShort = totals[i]
+      ? brlCompact.format(totals[i]).replace(/^R\$\s?/, '')
+      : '—';
     return `
-      <button type="button" class="month-col${selected ? ' selected' : ''}" data-month="${i + 1}"
+      <button type="button" class="month-col${selected ? ' selected' : ''}${dimmed ? ' dimmed' : ''}" data-month="${i + 1}"
         aria-pressed="${selected}" aria-label="${MESES_NOMES[i]}: ${brl.format(totals[i])}"
-        title="${MESES_NOMES[i]}: ${brl.format(totals[i])}">
-        <span class="month-val-top">${totals[i] ? brlCompact.format(totals[i]) : '—'}</span>
+        title="${MESES_NOMES[i]}: ${brl.format(totals[i])} (Normal: ${brl.format(normal[i])} · Alerta: ${brl.format(alert[i])})">
+        <span class="month-val-top">${valShort}</span>
         <span class="month-bars-stack">
           <span class="m-bar-alert" style="block-size:${Math.round((alert[i] / max) * 140)}px"></span>
           <span class="m-bar-normal" style="block-size:${Math.round((normal[i] / max) * 140)}px"></span>
@@ -652,12 +947,21 @@ function openDetail(idx) {
   const cargo = r.cargo === 'SENADOR DA REPÚBLICA' ? 'Senador(a)' : 'Deputado(a) Federal';
   const vezes = r.mediaAceitavelCategoria > 0 ? r.valorLiquido / r.mediaAceitavelCategoria : 0;
 
+  const obraUF = (state.data?.obrasProjetos || []).find((o) => o.uf === r.siglaUF && o.ano === r.ano && o.valorTotalObra > 0)
+    || (state.data?.obrasProjetos || []).find((o) => o.uf === r.siglaUF && o.valorTotalObra > 0);
+  const refObraTxt = obraUF
+    ? ` Em <strong>${esc(obraUF.municipio)}/${esc(obraUF.uf)}</strong> (${r.ano}), esse valor representa
+       <strong>${Math.min(100, (r.excessoMensal / obraUF.aporteNecessarioPeriodo) * 100).toFixed(1)}%</strong> do custo de referência da obra/serviço
+       <em>"${esc(obraUF.titulo)}"</em>.`
+    : '';
+
   const explain = isAlert
     ? `<strong>Por que recebeu alerta?</strong> Esta nota de ${brl.format(r.valorLiquido)} é cerca de
        <strong>${vezes.toFixed(1)}×</strong> o valor típico de "${esc(r.tipoDespesa.toLowerCase())}" (${brl.format(r.mediaAceitavelCategoria)}).
-       A IA estimou ${(r.probabilidadeAtipico * 100).toFixed(0)}% de chance de ser um gasto fora do padrão.
-       Repetido por 5 anos, o excesso somaria ${brl.format(r.impacto5Anos)} — o equivalente a
-       ${intFmt.format(Math.floor(r.impacto5Anos / 1.5))} merendas escolares.`
+       O excedente estatístico desta nota é de <strong>${brl.format(r.excessoMensal)}</strong> — no mesmo mês (${MESES_NOMES[r.mes - 1]}/${r.ano}),
+       esse valor custearia <strong>${intFmt.format(Math.max(0, Math.floor(r.excessoMensal / custo('consulta_atencao_basica'))))} consultas médicas no SUS</strong>,
+       <strong>${intFmt.format(Math.max(0, Math.floor(r.excessoMensal / custo('kit_escolar_aluno'))))} kits escolares anuais</strong> ou
+       <strong>${intFmt.format(Math.max(0, Math.floor(r.excessoMensal / custo('cesta_basica_familiar'))))} cestas de assistência de referência</strong> em ${esc(r.siglaUF)}.${refObraTxt}`
     : `<strong>Dentro do esperado.</strong> O valor está compatível com o padrão de "${esc(r.tipoDespesa.toLowerCase())}"
        (média típica de ${brl.format(r.mediaAceitavelCategoria)}; alerta a partir de ${brl.format(r.limiarCategoria)}).`;
 
@@ -690,26 +994,83 @@ function openDetail(idx) {
 }
 
 /* -------------------------------------------------------------------------
-   Aba 2 — serviços equivalentes
+   Aba 2 — Comparativo multi-setor e Obras/Serviços no período
    ------------------------------------------------------------------------- */
-function renderImpactCards(total) {
-  const c = state.data.custosReferencia;
-  const items = [
-    ['Educação', c.merenda_escolar_pnae, 'merendas escolares (R$ 1,50 cada)'],
-    ['Material escolar', c.kit_escolar_aluno, 'kits escolares anuais (R$ 120)'],
-    ['Inclusão digital', c.computador_escola_publica, 'computadores para escolas (R$ 2.800)'],
-    ['Saúde (SUS)', c.consulta_atencao_basica, 'consultas na atenção básica (R$ 65)'],
-    ['Farmácia básica', c.kit_medicamentos_basicos, 'kits mensais de medicamentos (R$ 45)'],
-    ['Segurança pública', c.equipamento_seguranca_uf, 'diárias de patrulhamento (R$ 420)'],
-    ['Assistência social', c.cesta_basica_familiar, 'cestas básicas (R$ 750)'],
-    ['Renda', c.salario_minimo, 'salários mínimos (R$ 1.518)'],
-  ];
-  $('impact-cards-grid').innerHTML = items.map(([cat, unit, desc]) => `
-    <article class="impact-item">
-      <span class="impact-item-cat">${cat}</span>
-      <strong class="impact-item-qty">${intFmt.format(Math.floor(total / unit))}</strong>
-      <span class="impact-item-desc">${desc}</span>
-    </article>`).join('');
+function renderImpactCards(totalExcesso, isMensal) {
+  const items = isMensal
+    ? [
+      ['Saúde', custo('consulta_atencao_basica'), 'consultas especializadas', 'Referência de credenciamento; não tarifa universal SUS'],
+      ['Educação', custo('aluno_mes_fundeb'), 'aluno-mês', 'Aproximação FUNDEB; varia por rede e modalidade'],
+      ['Segurança', custo('equipamento_seguranca_uf'), 'diárias operacionais', 'Estimativa comparativa'],
+      ['Assistência social', custo('cesta_basica_familiar'), 'cestas de assistência', 'Estimativa; não cesta DIEESE'],
+    ]
+    : [
+      ['Saúde', custo('reforma_ubs'), 'reformas de UBS', 'Cenário de R$ 150 mil a R$ 350 mil'],
+      ['Educação', custo('climatizacao_escola'), 'climatizações de escolas', 'Cenário de R$ 80 mil a R$ 180 mil'],
+      ['Urgência e emergência', custo('ambulancia_samu'), 'ambulâncias SAMU', 'Referência aproximada; especificações variam'],
+      ['Infraestrutura', custo('pavimentacao_vias'), 'trechos de pavimentação', 'Referência comparativa; extensão e escopo variam'],
+    ];
+
+  $('impact-cards-grid').innerHTML = items.map(([cat, unit, desc, sub]) => {
+    const qty = totalExcesso / unit;
+    const qtyFmt = qty >= 1 ? intFmt.format(Math.floor(qty)) : `${(qty * 100).toFixed(0)}% de 1`;
+    return `
+      <article class="impact-item">
+        <span class="impact-item-cat">${cat}</span>
+        <strong class="impact-item-qty">${qtyFmt}</strong>
+        <span class="impact-item-desc">${desc} (${brl.format(unit)})</span>
+        <span class="impact-item-sub">${sub}</span>
+      </article>`;
+  }).join('');
+}
+
+function renderObrasGrid(totalExcesso, f, rows) {
+  const grid = $('obras-grid');
+  if (!grid) return;
+  const obras = getMatchingObras(f, rows);
+  const cityLabel = f.cidadeObra !== 'all' ? $('f-obra-cidade').selectedOptions[0]?.textContent : null;
+  $('obras-subtitle').textContent = `${intFmt.format(obras.length)} projetos ${cityLabel ? 'em ' + cityLabel : 'no recorte geográfico'} · situação atual do cadastro. Ano e mês dos gastos não restringem o cadastro de obras.`;
+  $('obras-scope-note').textContent = `Comparação com ${brl.format(totalExcesso)} de excedente estatístico das despesas parlamentares no recorte selecionado. O filtro de cidade seleciona obras e não atribui esses gastos ao município.`;
+  if (!obras.length) {
+    grid.innerHTML = '<p class="card-subtitle" role="status">Nenhum projeto cadastrado corresponde aos filtros. Experimente outro município ou amplie o recorte.</p>';
+    $('btn-more-obras').hidden = true;
+    return;
+  }
+  const sorted = [...obras].sort((a, b) => {
+    const status = Number(b.situacao === 'Paralisada') - Number(a.situacao === 'Paralisada');
+    return status || Number(comparisonValue(a) == null) - Number(comparisonValue(b) == null)
+      || String(b.dataCadastro || '').localeCompare(String(a.dataCadastro || ''))
+      || (a.valorTotalObra || 0) - (b.valorTotalObra || 0) || a.codigoObra.localeCompare(b.codigoObra);
+  });
+  grid.innerHTML = sorted.slice(0, state.worksLimit).map((o) => {
+    const official = o.tipoRegistro === 'oficial';
+    const value = o.valorTotalObra;
+    const ratio = comparisonValue(o) != null ? totalExcesso / value : null;
+    const pctBar = ratio == null ? 0 : Math.min(100, Math.max(0, ratio * 100));
+    const locations = workMunicipalities(o);
+    const place = locations.length ? locations.map((city) => `${city.nome} / ${city.uf}`).join('; ') : o.municipio;
+    const comparison = ratio == null
+      ? (value > 0 ? 'O valor publicado é inferior a R$ 1.000 e não é usado na comparação orçamentária.' : 'A fonte não publicou valor positivo de investimento para esta obra.')
+      : `O excedente do recorte equivale a <strong>${(ratio * 100).toFixed(1)}%</strong> do ${official ? 'investimento previsto' : 'custo de referência'} (${ratio.toFixed(1)}×).`;
+    return `<article class="obra-card${o.situacao === 'Paralisada' ? ' paralisada' : ''}${ratio >= 1 ? ' coberta' : ''}">
+      <div class="obra-top"><span class="obra-badge-setor">${esc(o.setor)}${o.subTipo ? ' · ' + esc(o.subTipo) : ''}</span>
+        <span class="obra-badge-status">${esc(o.situacao)}</span></div>
+      <h4 class="obra-title">${esc(o.titulo)}</h4>
+      <div class="obra-meta">
+        <span>📍 Município: <strong>${esc(place)}</strong></span>
+        ${o.divergenciaLocalizacao ? `<span>${esc(o.origemMunicipio)}; divergência na geometria da fonte (${esc((o.municipiosGeometria || []).map((city) => city.nome + "/" + city.uf).join("; "))}).</span>` : ""}
+        ${o.endereco ? `<span>Endereço cadastrado: ${esc(o.endereco)}</span>` : ''}
+        <span>Cadastro: ${o.dataCadastro ? esc(o.dataCadastro.split('-').reverse().join('/')) : official ? 'Não informado' : 'referência ' + o.ano}</span>
+        <span>🏛 ${esc(o.orgaoFonte)}</span>
+      </div>
+      <div class="obra-values"><span>${official ? 'Investimento previsto' : 'Custo estimado'}: <strong class="mono">${value > 0 ? brl.format(value) : 'Não informado'}</strong></span></div>
+      ${ratio != null ? `<div class="obra-bar-track" aria-hidden="true"><div class="obra-bar-fill${ratio < 1 ? ' partial' : ''}" style="inline-size:${pctBar}%"></div></div>` : ''}
+      <p class="obra-impact-note">${comparison}</p>
+      ${official && o.urlFonte?.startsWith('https://cipi.economia.gov.br/') ? `<a href="${esc(o.urlFonte)}" target="_blank" rel="noopener noreferrer">Ver cadastro oficial ↗</a>` : ''}
+    </article>`;
+  }).join('');
+  $('btn-more-obras').hidden = state.worksLimit >= obras.length;
+  $('btn-more-obras').textContent = `Mostrar mais projetos (${intFmt.format(Math.min(state.worksLimit, obras.length))} de ${intFmt.format(obras.length)})`;
 }
 
 /* -------------------------------------------------------------------------
@@ -815,9 +1176,80 @@ async function copyLink() {
 /* -------------------------------------------------------------------------
    Orquestração
    ------------------------------------------------------------------------- */
-function applyFilters({ updateUrl = true, keepPage = false } = {}) {
+/* Filtragem em Web Worker: a thread da interface não congela com 300 mil notas. */
+const pendingFilters = new Map();
+let workerReady = null;
+let requestId = 0;
+let applySeq = 0;
+
+function setupFilterWorker(columns) {
+  try {
+    const worker = new Worker(new URL('./filter.worker.js', import.meta.url), { type: 'module' });
+    workerReady = new Promise((resolve, reject) => {
+      worker.onmessage = (event) => {
+        const msg = event.data;
+        if (msg.type === 'ready') resolve();
+        else if (msg.type === 'result') {
+          pendingFilters.get(msg.id)?.(msg);
+          pendingFilters.delete(msg.id);
+        }
+      };
+      worker.onerror = (event) => {
+        reject(new Error(event.message || 'Falha no worker'));
+        pendingFilters.forEach((done) => done(null));
+        pendingFilters.clear();
+      };
+    });
+    workerReady.catch(() => {});
+    worker.postMessage({ type: 'init', cols: columns });
+    state.worker = worker;
+  } catch (error) {
+    console.info('Web Worker indisponível, filtrando na thread principal:', error.message);
+    state.worker = null;
+  }
+}
+
+async function filterRows(f) {
+  const otherYear = f.ano !== 'all' ? (f.ano === '2026' ? '2025' : '2026') : null;
+  if (state.worker) {
+    try {
+      await workerReady;
+      const id = ++requestId;
+      const res = await new Promise((resolve) => {
+        pendingFilters.set(id, resolve);
+        state.worker.postMessage({ type: 'filter', id, f, otherYear });
+      });
+      if (!res) throw new Error('worker sem resposta');
+      const pick = (indexes) => (indexes ? Array.from(indexes, (i) => state.all[i]) : null);
+      return { filtered: pick(res.filtered), otherYear: pick(res.otherYear), noMonth: pick(res.noMonth) };
+    } catch (error) {
+      console.info('Filtro no worker falhou; usando a thread principal:', error.message);
+      state.worker = null;
+    }
+  }
+  return { filtered: state.all.filter((r) => matchRecord(r, f)), otherYear: null, noMonth: null };
+}
+
+function setBusy(busy) {
+  document.querySelector('.kpi-row')?.classList.toggle('is-loading', busy);
+  document.querySelector('.ai-insight-card')?.classList.toggle('is-loading', busy);
+}
+
+async function applyFilters({ updateUrl = true, keepPage = false } = {}) {
+  syncMonthSelectForYear($('f-ano')?.value || 'all');
+  updateWorkCities();
   const f = getFilterState();
-  state.filtered = state.all.filter((r) => matchRecord(r, f));
+  const seq = ++applySeq;
+  const slowTimer = setTimeout(() => setBusy(true), 150);
+  const rows = await filterRows(f);
+  clearTimeout(slowTimer);
+  if (seq !== applySeq) return; // chegou uma consulta mais recente
+  setBusy(false);
+
+  state.worksLimit = 18;
+  state.filtered = rows.filtered;
+  state.otherYearRows = rows.otherYear;
+  state.noMonthRows = rows.noMonth;
   if (!keepPage) state.page = 1;
 
   renderActiveChips(f);
@@ -837,8 +1269,6 @@ function filterByPerson(name) {
 }
 
 function bindEvents() {
-  const debounced = debounce(() => applyFilters(), 220);
-  $('f-busca').addEventListener('input', debounced);
   FILTERS.filter((x) => x.type !== 'text').forEach(({ id }) => {
     $(id).addEventListener('change', () => applyFilters());
   });
@@ -846,6 +1276,11 @@ function bindEvents() {
   $('btn-reset-filters').addEventListener('click', resetFilters);
   $('btn-export-csv').addEventListener('click', exportCsv);
   $('btn-copy-link').addEventListener('click', copyLink);
+  $('btn-more-obras').addEventListener('click', () => {
+    state.worksLimit += 18;
+    const excess = state.filtered.filter((r) => r.classePredita === 1).reduce((sum, r) => sum + r.excessoMensal, 0);
+    renderObrasGrid(excess, getFilterState(), state.filtered);
+  });
 
   // Delegação de cliques para elementos renderizados dinamicamente
   document.addEventListener('click', (e) => {
@@ -865,6 +1300,7 @@ function bindEvents() {
     if (t.dataset.dlgForn) {
       $('dlg-detail').close();
       $('f-busca').value = t.dataset.dlgForn;
+      state.searchDirty = false;
       applyFilters();
       return;
     }
@@ -881,7 +1317,8 @@ function bindEvents() {
     if (t.dataset.key !== undefined && t.classList.contains('rank-card')) {
       const val = t.dataset.key;
       if (state.rankMode === 'fornecedor') {
-        $('f-busca').value = $('f-busca').value === val ? '' : val;
+        $('f-busca').value = state.committedBusca === val ? '' : val;
+        state.searchDirty = false;
       } else {
         const map = { parlamentar: 'f-parlamentar', partido: 'f-partido', uf: 'f-uf', regiao: 'f-regiao' };
         const el = $(map[state.rankMode]);
@@ -931,32 +1368,54 @@ function bindEvents() {
   window.addEventListener('popstate', () => { restoreFromUrl(); applyFilters({ updateUrl: false }); });
 }
 
+/** Mostra os totais gerais (resumo_geral.json) enquanto as notas detalhadas carregam. */
+function showQuickSummary(summary) {
+  const t = summary?.totais;
+  if (!t || state.all.length || location.search) return;
+  $('kpi-total-gasto').textContent = brl.format(t.total);
+  $('kpi-total-notas').textContent = `${intFmt.format(t.notas)} notas fiscais`;
+  $('kpi-media-nota').textContent = brl.format(t.notas ? t.total / t.notas : 0);
+  $('kpi-total-parlamentares').textContent = `${intFmt.format(t.parlamentares)} parlamentar(es)`;
+  $('kpi-total-atipicos').textContent = `${intFmt.format(t.alertas)} notas`;
+  $('kpi-excesso-mensal').textContent = `${((t.alertas / Math.max(t.notas, 1)) * 100).toFixed(1)}% das notas`;
+  $('kpi-excesso-periodo').textContent = brl.format(t.excesso);
+  $('kpi-obras-cobertas').textContent = 'Visão geral · detalhando o recorte…';
+  document.querySelector('.kpi-row')?.classList.remove('is-loading');
+  $('ai-insight-body').innerHTML = `<p>Carregando as ${intFmt.format(t.notas)} notas fiscais para habilitar filtros e comparações…</p>`;
+}
+
 async function init() {
   setupTabs();
   setupDialogs();
   setupSettings();
   state.pageSize = parseInt(safeStorageGet(STORAGE_PAGE) || '30', 10) || 30;
 
+  loadSummary().then(showQuickSummary);
   try {
-    const res = await fetch('/data/dashboard_data.json');
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    state.data = await res.json();
+    state.data = await loadDashboardData();
   } catch (err) {
+    setBusy(false);
     $('ai-insight-body').innerHTML = `<p>Não foi possível carregar os dados (${esc(err.message)}). Rode <code>pnpm run train</code> para gerar <code>public/data/dashboard_data.json</code>.</p>`;
     return;
   }
 
-  state.all = (state.data.records || []).map((r, i) => ({
-    ...r,
-    _idx: i,
-    diffPct: r.mediaAceitavelCategoria > 0 ? ((r.valorLiquido - r.mediaAceitavelCategoria) / r.mediaAceitavelCategoria) * 100 : 0,
-    _search: `${r.nomeParlamentar} ${r.siglaPartido} ${r.siglaUF} ${r.nomeFornecedor} ${r.cnpjCpfFornecedor} ${r.tipoDespesa}`.toLowerCase(),
-  }));
+  state.all = decodeRecords(state.data);
+  setupFilterWorker(pickFilterColumns(state.data));
+  delete state.data.recordColumns;
+  delete state.data.records;
+  state.all.forEach((r, i) => {
+    r._idx = i;
+    r.diffPct = r.mediaAceitavelCategoria > 0 ? ((r.valorLiquido - r.mediaAceitavelCategoria) / r.mediaAceitavelCategoria) * 100 : 0;
+    const year = String(r.ano);
+    if (!(state.maxMonthByYear[year] >= r.mes)) state.maxMonthByYear[year] = r.mes;
+  });
   state.mediaGlobal = state.all.length
     ? state.all.reduce((a, r) => a + r.valorLiquido, 0) / state.all.length
     : 0;
 
   populateFilterOptions(state.all);
+  buildPeopleIndex();
+  setupSuggest();
   setupTechnicalTab(state.data);
   restoreFromUrl();
   bindEvents();

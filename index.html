@@ -40,8 +40,8 @@
           Consulta
         </button>
         <button type="button" role="tab" aria-selected="false" aria-controls="tab-impacto" id="btn-tab-impacto" class="tab-btn" data-tab="impacto">
-          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-          Serviços Equivalentes
+          <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18"/><path d="M5 21V7l8-4v18"/><path d="M19 21V11l-6-4"/><path d="M9 9v.01"/><path d="M9 12v.01"/><path d="M9 15v.01"/><path d="M9 18v.01"/></svg>
+          Obras e Serviços no Período
         </button>
         <button type="button" role="tab" aria-selected="false" aria-controls="tab-tecnica" id="btn-tab-tecnica" class="tab-btn" data-tab="tecnica">
           <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
@@ -67,11 +67,12 @@
         <div class="filter-top-row">
           <div class="search-field-wrap">
             <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
-            <input type="search" id="f-busca" list="dl-busca" autocomplete="off"
+            <input type="search" id="f-busca" autocomplete="off" role="combobox" aria-autocomplete="list"
+              aria-expanded="false" aria-controls="search-suggest"
               placeholder="Pesquisar deputado, senador, fornecedor ou CNPJ..."
               aria-label="Pesquisar parlamentar, fornecedor ou CNPJ" />
             <kbd class="kbd-hint" aria-hidden="true">/</kbd>
-            <datalist id="dl-busca"></datalist>
+            <ul id="search-suggest" class="suggest-list" role="listbox" aria-label="Sugestões de parlamentares" hidden></ul>
           </div>
 
           <div class="quick-person-wrap">
@@ -158,7 +159,7 @@
 
       <div id="parlamentar-profile-banner" class="surface-card profile-banner" hidden></div>
 
-      <div class="kpi-row">
+      <div class="kpi-row is-loading">
         <article class="surface-card kpi-box">
           <span class="kpi-title">Total gasto no recorte</span>
           <strong class="kpi-number" id="kpi-total-gasto">—</strong>
@@ -176,13 +177,13 @@
           <span class="kpi-sub" id="kpi-excesso-mensal">—</span>
         </article>
         <article class="surface-card kpi-box kpi-box-accent">
-          <span class="kpi-title">Equivale em 5 anos a</span>
-          <strong class="kpi-number" id="kpi-equiv-merendas">—</strong>
-          <span class="kpi-sub">merendas escolares (PNAE · R$ 1,50)</span>
+          <span class="kpi-title">Excesso real no período</span>
+          <strong class="kpi-number" id="kpi-excesso-periodo">—</strong>
+          <span class="kpi-sub" id="kpi-obras-cobertas">—</span>
         </article>
       </div>
 
-      <article class="surface-card ai-insight-card" aria-live="polite">
+      <article class="surface-card ai-insight-card is-loading" aria-live="polite">
         <div class="ai-insight-header">
           <div class="ai-badge">
             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true"><path d="m12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z"/></svg>
@@ -279,23 +280,45 @@
       </article>
     </section>
 
-    <!-- ================= ABA 2: SERVIÇOS EQUIVALENTES ================= -->
+    <!-- ================= ABA 2: OBRAS E SERVIÇOS NO PERÍODO ================= -->
     <section id="tab-impacto" role="tabpanel" aria-labelledby="btn-tab-impacto" class="tab-panel" hidden>
       <div class="surface-card section-card">
         <div class="card-head">
           <div>
-            <h2>O que esse dinheiro poderia pagar?</h2>
+            <h2>Comparativo por setor no período selecionado</h2>
             <p class="card-subtitle">
-              Valores acima do padrão no recorte atual (<strong id="impact-scope-label">Visão geral</strong>),
-              projetados para 5 anos e convertidos em serviços públicos.
+              Montante acima do padrão registrado em <strong id="impact-scope-label">Visão geral</strong>
+              (<span id="impact-scale-label">escala anual/acumulada</span>), comparado com cenários de custos públicos. Valores são estimativas, não repasses contratados.
             </p>
           </div>
           <div class="impact-highlight-pill">
-            Projeção em 5 anos: <strong id="impact-total-5y">—</strong>
+            Excesso no período: <strong id="impact-total-periodo">—</strong>
           </div>
         </div>
         <div class="impact-cards-grid" id="impact-cards-grid"></div>
-        <p class="footnote">Custos de referência: FNDE/PNAE, DataSUS/SIGTAP, DIEESE, SENASP e salário mínimo nacional. A projeção é ilustrativa e assume que o padrão de excesso se repetiria mensalmente por 60 meses.</p>
+      </div>
+
+      <div class="surface-card section-card">
+        <div class="card-head">
+          <div>
+            <h3>Obras públicas por cidade</h3>
+            <p class="card-subtitle" id="obras-subtitle" aria-live="polite">
+              Projetos oficiais do ObrasGov com município, situação e investimento previsto.
+            </p>
+          </div>
+          <div class="obras-filters">
+            <label>Estado das obras<select id="f-obra-uf"><option value="recorte">Estado do recorte parlamentar</option><option value="all">Todos os estados</option></select></label>
+            <label>Cidade<select id="f-obra-cidade"><option value="all">Todas as cidades</option></select></label>
+            <label>Dados<select id="f-obra-tipo"><option value="oficial">Projetos oficiais (ObrasGov)</option><option value="referencia">Referências de custo</option><option value="all">Todos os registros</option></select></label>
+            <label>Ano de cadastro<select id="f-obra-ano"><option value="all">Todos os anos de cadastro</option></select></label>
+            <label>Setor<select id="f-obra-setor"><option value="all">Todos os setores</option></select></label>
+            <label>Situação<select id="f-obra-status"><option value="all">Todas as situações</option></select></label>
+          </div>
+        </div>
+        <p id="obras-scope-note" class="footnote"></p>
+        <div id="obras-grid" class="obras-grid"></div>
+        <button id="btn-more-obras" type="button" class="btn">Mostrar mais projetos</button>
+        <p class="footnote">Fonte: API pública ObrasGov. Municípios identificados na geometria ou na menção explícita do nome oficial; divergências são sinalizadas. Uma obra pode abranger várias cidades. Investimento previsto não corresponde necessariamente ao valor pago. Ausência de município ou valor é indicada nos cartões.</p>
       </div>
     </section>
 
