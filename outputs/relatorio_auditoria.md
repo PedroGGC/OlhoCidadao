@@ -1,17 +1,19 @@
 # Relatório de Auditoria Inteligente e Impacto Social (CEAP)
 
-**Data da Auditoria:** 22/10/2026 às 13:44  
+**Data da Auditoria:** 22/10/2026 às 15:15
 **Motor de Detecção:** Rede Neural Multilayer Perceptron (`NnModel` 100% NumPy com ativação `tanh`)  
 **Motor de Parecer Social:** Motor Analítico Cidadão Offline (Fallback Inteligente Baseado em Custos Públicos Oficiais)  
 
 ---
 
-## 1. Resumo Executivo da Auditoria no Conjunto de Teste
+As classes são rótulos estatísticos, não comprovação de irregularidade. Custos são referências comparativas; a projeção de 60 meses é hipotética e não representa gasto observado.
 
-- **Gastos Classificados como Atípicos/Suspeitos (Classe 1):** `12900` notas fiscais auditadas
-- **Volume Mensal Auditado nesses Casos:** `R$ 56.380.959,97`
-- **Excesso Mensal Acima da Média Aceitável por Categoria:** `R$ 45.721.781,23`
-- **Projeção Acumulada de Desperdício em 5 Anos (60 meses):** **R$ 2.743.306.873,81**
+## 1. Resumo Executivo da Auditoria na Base Integral
+
+- **Gastos Classificados como Atípicos/Suspeitos (Classe 1):** `47758` notas fiscais auditadas
+- **Volume Auditado nesses Casos (2025–2026):** `R$ 225.395.363,45`
+- **Excesso Mensal Acima da Média Aceitável por Categoria:** `R$ 176.658.034,69`
+- **Cenário hipotético: repetição do excedente por 60 meses:** **R$ 10.599.482.081,13**
 
 ---
 
@@ -21,106 +23,106 @@ Caso o montante excedente identificado pela Rede Neural fosse realocado integral
 
 | Área Prioritária | Indicador / Política Pública de Referência | Custo Unitário Médio | Quantidade Financiável (5 Anos) | Fonte Oficial |
 | :--- | :--- | :---: | :---: | :--- |
-| **Educação Básica** | Merendas Escolares (PNAE/FNDE) | R$ 1,50 | **1.828.871.249 refeições** | FNDE / MEC |
-| **Educação Básica** | Kits Completos de Material Escolar | R$ 120,00 | **22.860.890 alunos atendidos** | FNDE / MEC |
-| **Inclusão Digital** | Computadores para Escolas Públicas | R$ 2.800,00 | **979.752 equipamentos** | PNCP / Gov.br |
-| **Saúde Pública (SUS)** | Consultas Médicas de Atenção Primária | R$ 65,00 | **42.204.721 consultas** | DataSUS / SIGTAP |
-| **Saúde Pública (SUS)** | Kits Mensais da Farmácia Básica | R$ 45,00 | **60.962.374 tratamentos mensais** | RENAME / MS |
-| **Segurança Pública** | Diárias Operacionais de Patrulhamento/EPIs | R$ 420,00 | **6.531.683 diárias táticas** | SENASP / MJSP |
-| **Assistência Social** | Cestas Básicas Familiares (Ref. DIEESE) | R$ 750,00 | **3.657.742 famílias assistidas** | DIEESE |
-| **Renda do Trabalho** | Salários Mínimos Equivalentes | R$ 1.518,00 | **1.807.185 salários mínimos** | Portal da Transparência |
+| **Educação Básica** | Merendas Escolares (PNAE/FNDE) | R$ 1,50 | **7.066.321.387 refeições** | FNDE / MEC |
+| **Educação Básica** | Kits Completos de Material Escolar | R$ 120,00 | **88.329.017 alunos atendidos** | FNDE / MEC |
+| **Inclusão Digital** | Computadores para Escolas Públicas | R$ 2.800,00 | **3.785.529 equipamentos** | PNCP / Gov.br |
+| **Saúde Pública (SUS)** | Consultas Médicas de Atenção Primária | R$ 120,00 | **88.329.017 consultas** | CISCOPAR (referência de credenciamento) |
+| **Saúde Pública (SUS)** | Kits Mensais da Farmácia Básica | R$ 45,00 | **235.544.046 tratamentos mensais** | RENAME / MS |
+| **Segurança Pública** | Diárias Operacionais de Patrulhamento/EPIs | R$ 350,00 | **30.284.234 diárias táticas** | Estimativa do projeto |
+| **Assistência Social** | Cestas Básicas Familiares (estimativa assistencial) | R$ 350,00 | **30.284.234 famílias assistidas** | Estimativa do projeto |
+| **Renda do Trabalho** | Salários Mínimos Equivalentes | R$ 1.518,00 | **6.982.531 salários mínimos** | Portal da Transparência |
 
 ---
 
 ## 3. Detalhamento dos 8 Casos Mais Críticos Detectados pela Rede Neural
 
-### Caso #01 — Aluisio Mendes (Dep. Federal) (REPUBLICANOS-MA)
+### Caso #01 — STYVENSON VALENTIM (Senador) (N/I-RN)
+- **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
+- **Fornecedor Declarado:** `PLANALTO MARKETING & PUBLICIDADE LTDA` (CNPJ/CPF: `26.551.610/0001-77` | Competência: `05/2025`) | [Nota Fiscal Oficial na Câmara](https://www6g.senado.leg.br/transparencia/sen/)
+- **Valor Líquido da Nota:** **R$ 175.000,00** *(Valor Base Aceitável na Categoria: R$ 3.557,11)*
+- **Excesso Mensal Detectado:** `R$ 171.442,89` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
+- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 10.286.573,30**
+- **Parecer de Retorno Social para o Estado (RN):**
+  - **Educação em RN:** Financiaria **6.857.715 merendas escolares** (a R$ 1,50) ou **85.721 kits escolares completos** para crianças da rede pública.
+  - **Saúde Básica em RN:** Garantiria **85.721 consultas médicas no SUS** ou **228.590 kits de medicamentos essenciais**.
+  - **Segurança Pública em RN:** Custearia **29.390 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
+
+### Caso #02 — Aluisio Mendes (Dep. Federal) (REPUBLICANOS-MA)
 - **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
 - **Fornecedor Declarado:** `Adriano L Silva Engenharia Serviços e Comércio` (CNPJ/CPF: `352.650.610/0016-5` | Competência: `12/2025`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/documentos/publ/2999/2025/8028441.pdf)
-- **Valor Líquido da Nota:** **R$ 140.000,00** *(Valor Base Aceitável na Categoria: R$ 2.271,73)*
-- **Excesso Mensal Detectado:** `R$ 137.728,27` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
-- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 8.263.696,21**
+- **Valor Líquido da Nota:** **R$ 140.000,00** *(Valor Base Aceitável na Categoria: R$ 3.557,11)*
+- **Excesso Mensal Detectado:** `R$ 136.442,89` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
+- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 8.186.573,30**
 - **Parecer de Retorno Social para o Estado (MA):**
-  - **Educação em MA:** Financiaria **5.509.130 merendas escolares** (a R$ 1,50) ou **68.864 kits escolares completos** para crianças da rede pública.
-  - **Saúde Básica em MA:** Garantiria **127.133 consultas médicas no SUS** ou **183.637 kits de medicamentos essenciais**.
-  - **Segurança Pública em MA:** Custearia **19.675 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
+  - **Educação em MA:** Financiaria **5.457.715 merendas escolares** (a R$ 1,50) ou **68.221 kits escolares completos** para crianças da rede pública.
+  - **Saúde Básica em MA:** Garantiria **68.221 consultas médicas no SUS** ou **181.923 kits de medicamentos essenciais**.
+  - **Segurança Pública em MA:** Custearia **23.390 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
 
-### Caso #02 — Marcos Soares (Dep. Federal) (PSDB-RJ)
+### Caso #03 — Silas Câmara (Dep. Federal) (REPUBLICANOS-AM)
+- **Categoria da Despesa (CEAP):** `LOCAÇÃO OU FRETAMENTO DE AERONAVES`
+- **Fornecedor Declarado:** `AMAZONAVES TAXI AEREO LTDA` (CNPJ/CPF: `030.907.560/0016-7` | Competência: `02/2026`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/documentos/publ/1286/2026/8065824.pdf)
+- **Valor Líquido da Nota:** **R$ 149.500,00** *(Valor Base Aceitável na Categoria: R$ 21.705,79)*
+- **Excesso Mensal Detectado:** `R$ 127.794,21` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
+- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 7.667.652,89**
+- **Parecer de Retorno Social para o Estado (AM):**
+  - **Educação em AM:** Financiaria **5.111.768 merendas escolares** (a R$ 1,50) ou **63.897 kits escolares completos** para crianças da rede pública.
+  - **Saúde Básica em AM:** Garantiria **63.897 consultas médicas no SUS** ou **170.392 kits de medicamentos essenciais**.
+  - **Segurança Pública em AM:** Custearia **21.907 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
+
+### Caso #04 — Sargento Gonçalves (Dep. Federal) (PL-RN)
+- **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
+- **Fornecedor Declarado:** `Maricleydson Costa da Silva` (CNPJ/CPF: `173.404.470/0010-2` | Competência: `10/2025`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/nota-fiscal-eletronica?ideDocumentoFiscal=7995308)
+- **Valor Líquido da Nota:** **R$ 128.000,00** *(Valor Base Aceitável na Categoria: R$ 3.557,11)*
+- **Excesso Mensal Detectado:** `R$ 124.442,89` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
+- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 7.466.573,30**
+- **Parecer de Retorno Social para o Estado (RN):**
+  - **Educação em RN:** Financiaria **4.977.715 merendas escolares** (a R$ 1,50) ou **62.221 kits escolares completos** para crianças da rede pública.
+  - **Saúde Básica em RN:** Garantiria **62.221 consultas médicas no SUS** ou **165.923 kits de medicamentos essenciais**.
+  - **Segurança Pública em RN:** Custearia **21.333 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
+
+### Caso #05 — Sargento Gonçalves (Dep. Federal) (PL-RN)
+- **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
+- **Fornecedor Declarado:** `Maricleydson Costa da Silva` (CNPJ/CPF: `173.404.470/0010-2` | Competência: `12/2025`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/nota-fiscal-eletronica?ideDocumentoFiscal=8035404)
+- **Valor Líquido da Nota:** **R$ 126.400,00** *(Valor Base Aceitável na Categoria: R$ 3.557,11)*
+- **Excesso Mensal Detectado:** `R$ 122.842,89` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
+- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 7.370.573,30**
+- **Parecer de Retorno Social para o Estado (RN):**
+  - **Educação em RN:** Financiaria **4.913.715 merendas escolares** (a R$ 1,50) ou **61.421 kits escolares completos** para crianças da rede pública.
+  - **Saúde Básica em RN:** Garantiria **61.421 consultas médicas no SUS** ou **163.790 kits de medicamentos essenciais**.
+  - **Segurança Pública em RN:** Custearia **21.058 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
+
+### Caso #06 — PROFESSORA DORINHA SEABRA (Senador) (N/I-TO)
+- **Categoria da Despesa (CEAP):** `CONTRATAÇÃO DE CONSULTORIAS, ASSESSORIAS, PESQUISAS, TRABALHOS TÉCNICOS E OUTROS SERVIÇOS DE APOIO AO EXERCÍCIO DO MANDATO PARLAMENTAR`
+- **Fornecedor Declarado:** `GRÁFICA E EDITORA SANTO EXPEDITO LTDA` (CNPJ/CPF: `09.015.122/0001-26` | Competência: `12/2025`) | [Nota Fiscal Oficial na Câmara](https://www6g.senado.leg.br/transparencia/sen/)
+- **Valor Líquido da Nota:** **R$ 110.000,00** *(Valor Base Aceitável na Categoria: R$ 1.945,21)*
+- **Excesso Mensal Detectado:** `R$ 108.054,79` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
+- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 6.483.287,15**
+- **Parecer de Retorno Social para o Estado (TO):**
+  - **Educação em TO:** Financiaria **4.322.191 merendas escolares** (a R$ 1,50) ou **54.027 kits escolares completos** para crianças da rede pública.
+  - **Saúde Básica em TO:** Garantiria **54.027 consultas médicas no SUS** ou **144.073 kits de medicamentos essenciais**.
+  - **Segurança Pública em TO:** Custearia **18.523 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
+
+### Caso #07 — Marcos Soares (Dep. Federal) (PSDB-RJ)
 - **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
 - **Fornecedor Declarado:** `Supraset Grafica e Editora Ltda` (CNPJ/CPF: `012.096.040/0010-5` | Competência: `12/2025`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/nota-fiscal-eletronica?ideDocumentoFiscal=8037519)
-- **Valor Líquido da Nota:** **R$ 110.000,00** *(Valor Base Aceitável na Categoria: R$ 2.271,73)*
-- **Excesso Mensal Detectado:** `R$ 107.728,27` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
-- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 6.463.696,21**
+- **Valor Líquido da Nota:** **R$ 110.000,00** *(Valor Base Aceitável na Categoria: R$ 3.557,11)*
+- **Excesso Mensal Detectado:** `R$ 106.442,89` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
+- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 6.386.573,30**
 - **Parecer de Retorno Social para o Estado (RJ):**
-  - **Educação em RJ:** Financiaria **4.309.130 merendas escolares** (a R$ 1,50) ou **53.864 kits escolares completos** para crianças da rede pública.
-  - **Saúde Básica em RJ:** Garantiria **99.441 consultas médicas no SUS** ou **143.637 kits de medicamentos essenciais**.
-  - **Segurança Pública em RJ:** Custearia **15.389 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
+  - **Educação em RJ:** Financiaria **4.257.715 merendas escolares** (a R$ 1,50) ou **53.221 kits escolares completos** para crianças da rede pública.
+  - **Saúde Básica em RJ:** Garantiria **53.221 consultas médicas no SUS** ou **141.923 kits de medicamentos essenciais**.
+  - **Segurança Pública em RJ:** Custearia **18.247 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
 
-### Caso #03 — Antônia Lúcia (Dep. Federal) (MDB-AC)
+### Caso #08 — Antônia Lúcia (Dep. Federal) (MDB-AC)
 - **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
 - **Fornecedor Declarado:** `E.O.PEREIRA` (CNPJ/CPF: `236.578.190/0012-1` | Competência: `10/2026`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/documentos/publ/2258/2026/8162426.pdf)
-- **Valor Líquido da Nota:** **R$ 103.000,00** *(Valor Base Aceitável na Categoria: R$ 2.271,73)*
-- **Excesso Mensal Detectado:** `R$ 100.728,27` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
-- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 6.043.696,21**
+- **Valor Líquido da Nota:** **R$ 103.000,00** *(Valor Base Aceitável na Categoria: R$ 3.557,11)*
+- **Excesso Mensal Detectado:** `R$ 99.442,89` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
+- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 5.966.573,30**
 - **Parecer de Retorno Social para o Estado (AC):**
-  - **Educação em AC:** Financiaria **4.029.130 merendas escolares** (a R$ 1,50) ou **50.364 kits escolares completos** para crianças da rede pública.
-  - **Saúde Básica em AC:** Garantiria **92.979 consultas médicas no SUS** ou **134.304 kits de medicamentos essenciais**.
-  - **Segurança Pública em AC:** Custearia **14.389 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
-
-### Caso #04 — PROFESSORA DORINHA SEABRA (Senador) (UNIÃO-TO)
-- **Categoria da Despesa (CEAP):** `CONTRATAÇÃO DE CONSULTORIAS, ASSESSORIAS, PESQUISAS, TRABALHOS TÉCNICOS E OUTROS SERVIÇOS DE APOIO AO EXERCÍCIO DO MANDATO PARLAMENTAR`
-- **Fornecedor Declarado:** `GRÁFICA E EDITORA SANTO EXPEDITO LTDA` (CNPJ/CPF: `09.015.122/0001-26` | Competência: `09/2025`) | [Nota Fiscal Oficial na Câmara](https://www6g.senado.leg.br/transparencia/sen/)
-- **Valor Líquido da Nota:** **R$ 100.200,00** *(Valor Base Aceitável na Categoria: R$ 1.106,70)*
-- **Excesso Mensal Detectado:** `R$ 99.093,30` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
-- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 5.945.597,80**
-- **Parecer de Retorno Social para o Estado (TO):**
-  - **Educação em TO:** Financiaria **3.963.731 merendas escolares** (a R$ 1,50) ou **49.546 kits escolares completos** para crianças da rede pública.
-  - **Saúde Básica em TO:** Garantiria **91.470 consultas médicas no SUS** ou **132.124 kits de medicamentos essenciais**.
-  - **Segurança Pública em TO:** Custearia **14.156 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
-
-### Caso #05 — Amanda Gentil (Dep. Federal) (PP-MA)
-- **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
-- **Fornecedor Declarado:** `INDUSTRIA GRAFICA E EDITORA SAO PAULO LTDA` (CNPJ/CPF: `197.686.560/0018-7` | Competência: `12/2025`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/nota-fiscal-eletronica?ideDocumentoFiscal=8037448)
-- **Valor Líquido da Nota:** **R$ 82.000,10** *(Valor Base Aceitável na Categoria: R$ 2.271,73)*
-- **Excesso Mensal Detectado:** `R$ 79.728,37` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
-- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 4.783.702,21**
-- **Parecer de Retorno Social para o Estado (MA):**
-  - **Educação em MA:** Financiaria **3.189.134 merendas escolares** (a R$ 1,50) ou **39.864 kits escolares completos** para crianças da rede pública.
-  - **Saúde Básica em MA:** Garantiria **73.595 consultas médicas no SUS** ou **106.304 kits de medicamentos essenciais**.
-  - **Segurança Pública em MA:** Custearia **11.389 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
-
-### Caso #06 — Silvye Alves (Dep. Federal) (UNIÃO-GO)
-- **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
-- **Fornecedor Declarado:** `Mais Brasil Publicidade e Propaganda LTDA` (CNPJ/CPF: `140.531.780/0010-5` | Competência: `12/2025`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/documentos/publ/3530/2025/8032568.pdf)
-- **Valor Líquido da Nota:** **R$ 78.360,00** *(Valor Base Aceitável na Categoria: R$ 2.271,73)*
-- **Excesso Mensal Detectado:** `R$ 76.088,27` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
-- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 4.565.296,21**
-- **Parecer de Retorno Social para o Estado (GO):**
-  - **Educação em GO:** Financiaria **3.043.530 merendas escolares** (a R$ 1,50) ou **38.044 kits escolares completos** para crianças da rede pública.
-  - **Saúde Básica em GO:** Garantiria **70.235 consultas médicas no SUS** ou **101.451 kits de medicamentos essenciais**.
-  - **Segurança Pública em GO:** Custearia **10.869 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
-
-### Caso #07 — Luciano Amaral (Dep. Federal) (PSD-AL)
-- **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
-- **Fornecedor Declarado:** `INDÚSTRIA GRÁFICA JARAGUÁ LTDA` (CNPJ/CPF: `108.030.130/0015-2` | Competência: `12/2025`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/documentos/publ/3621/2025/8032637.pdf)
-- **Valor Líquido da Nota:** **R$ 71.400,00** *(Valor Base Aceitável na Categoria: R$ 2.271,73)*
-- **Excesso Mensal Detectado:** `R$ 69.128,27` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
-- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 4.147.696,21**
-- **Parecer de Retorno Social para o Estado (AL):**
-  - **Educação em AL:** Financiaria **2.765.130 merendas escolares** (a R$ 1,50) ou **34.564 kits escolares completos** para crianças da rede pública.
-  - **Saúde Básica em AL:** Garantiria **63.810 consultas médicas no SUS** ou **92.171 kits de medicamentos essenciais**.
-  - **Segurança Pública em AL:** Custearia **9.875 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
-
-### Caso #08 — Paulo Lemos (Dep. Federal) (PT-AP)
-- **Categoria da Despesa (CEAP):** `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR`
-- **Fornecedor Declarado:** `Agir LTDA` (CNPJ/CPF: `468.799.140/0017-5` | Competência: `05/2026`) | [Nota Fiscal Oficial na Câmara](https://www.camara.leg.br/cota-parlamentar/documentos/publ/3795/2026/8110301.pdf)
-- **Valor Líquido da Nota:** **R$ 70.000,00** *(Valor Base Aceitável na Categoria: R$ 2.271,73)*
-- **Excesso Mensal Detectado:** `R$ 67.728,27` | **Confiança da Rede Neural (`NnModel`):** `100.0%`
-- **Impacto Acumulado em 5 Anos (60 meses):** **R$ 4.063.696,21**
-- **Parecer de Retorno Social para o Estado (AP):**
-  - **Educação em AP:** Financiaria **2.709.130 merendas escolares** (a R$ 1,50) ou **33.864 kits escolares completos** para crianças da rede pública.
-  - **Saúde Básica em AP:** Garantiria **62.518 consultas médicas no SUS** ou **90.304 kits de medicamentos essenciais**.
-  - **Segurança Pública em AP:** Custearia **9.675 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
+  - **Educação em AC:** Financiaria **3.977.715 merendas escolares** (a R$ 1,50) ou **49.721 kits escolares completos** para crianças da rede pública.
+  - **Saúde Básica em AC:** Garantiria **49.721 consultas médicas no SUS** ou **132.590 kits de medicamentos essenciais**.
+  - **Segurança Pública em AC:** Custearia **17.047 diárias operacionais de patrulhamento/equipamentos** para proteção comunitária no estado.
 
 ---
 
@@ -132,29 +134,27 @@ A inspeção automatizada pela Rede Neural Multilayer Perceptron (`NnModel`) evi
 
 | Categoria de Despesa (CEAP) | Ocorrências Atípicas | Impacto Projetado em 5 Anos |
 | :--- | :---: | :---: |
-| `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR` | 1543 | **R$ 1.158.654.832,83** |
-| `MANUTENÇÃO DE ESCRITÓRIO DE APOIO À ATIVIDADE PARLAMENTAR` | 2145 | **R$ 527.945.961,02** |
-| `LOCAÇÃO OU FRETAMENTO DE VEÍCULOS AUTOMOTORES` | 569 | **R$ 229.633.584,69** |
-| `COMBUSTÍVEIS E LUBRIFICANTES` | 3467 | **R$ 163.169.465,77** |
-| `LOCOMOÇÃO, HOSPEDAGEM, ALIMENTAÇÃO, COMBUSTÍVEIS E LUBRIFICANTES` | 749 | **R$ 142.231.234,35** |
-| `CONTRATAÇÃO DE CONSULTORIAS, ASSESSORIAS, PESQUISAS, TRABALHOS TÉCNICOS E OUTROS SERVIÇOS DE APOIO AO EXERCÍCIO DO MANDATO PARLAMENTAR` | 304 | **R$ 126.248.994,13** |
-| `PASSAGEM AÉREA - SIGEPA` | 1271 | **R$ 115.594.724,70** |
-| `ALUGUEL DE IMÓVEIS PARA ESCRITÓRIO POLÍTICO, COMPREENDENDO DESPESAS CONCERNENTES A ELES` | 398 | **R$ 85.390.833,88** |
-| `HOSPEDAGEM ,EXCETO DO PARLAMENTAR NO DISTRITO FEDERAL` | 702 | **R$ 36.485.898,85** |
-| `TELEFONIA` | 933 | **R$ 32.297.911,46** |
-| `LOCAÇÃO OU FRETAMENTO DE AERONAVES` | 34 | **R$ 32.200.419,36** |
-| `SERVIÇO DE SEGURANÇA PRESTADO POR EMPRESA ESPECIALIZADA` | 78 | **R$ 28.757.761,24** |
-| `AQUISIÇÃO DE MATERIAL DE CONSUMO PARA USO NO ESCRITÓRIO POLÍTICO, INCLUSIVE AQUISIÇÃO OU LOCAÇÃO DE SOFTWARE, DESPESAS POSTAIS, AQUISIÇÃO DE PUBLICAÇÕES, LOCAÇÃO DE MÓVEIS E DE EQUIPAMENTOS` | 101 | **R$ 17.733.464,24** |
-| `PASSAGENS AÉREAS, AQUÁTICAS E TERRESTRES NACIONAIS` | 88 | **R$ 16.031.496,94** |
-| `SERVIÇO DE TÁXI, PEDÁGIO E ESTACIONAMENTO` | 352 | **R$ 12.586.598,28** |
-| `PASSAGEM AÉREA - REEMBOLSO` | 8 | **R$ 7.532.435,12** |
-| `PASSAGEM AÉREA - RPA` | 56 | **R$ 7.058.820,71** |
-| `ASSINATURA DE PUBLICAÇÕES` | 22 | **R$ 1.539.923,87** |
-| `SERVIÇOS POSTAIS` | 14 | **R$ 680.319,24** |
-| `PASSAGENS TERRESTRES, MARÍTIMAS OU FLUVIAIS` | 34 | **R$ 631.661,29** |
-| `FORNECIMENTO DE ALIMENTAÇÃO DO PARLAMENTAR` | 30 | **R$ 520.489,77** |
-| `PARTICIPAÇÃO EM CURSO, PALESTRA OU EVENTO SIMILAR` | 1 | **R$ 366.755,91** |
-| `AQUISIÇÃO DE TOKENS E CERTIFICADOS DIGITAIS` | 1 | **R$ 13.286,13** |
+| `DIVULGAÇÃO DA ATIVIDADE PARLAMENTAR` | 6192 | **R$ 4.833.710.262,00** |
+| `MANUTENÇÃO DE ESCRITÓRIO DE APOIO À ATIVIDADE PARLAMENTAR` | 6517 | **R$ 2.032.922.279,83** |
+| `LOCAÇÃO OU FRETAMENTO DE VEÍCULOS AUTOMOTORES` | 1878 | **R$ 840.120.839,57** |
+| `LOCOMOÇÃO, HOSPEDAGEM, ALIMENTAÇÃO, COMBUSTÍVEIS E LUBRIFICANTES` | 2078 | **R$ 644.929.168,70** |
+| `COMBUSTÍVEIS E LUBRIFICANTES` | 3406 | **R$ 602.735.161,42** |
+| `CONTRATAÇÃO DE CONSULTORIAS, ASSESSORIAS, PESQUISAS, TRABALHOS TÉCNICOS E OUTROS SERVIÇOS DE APOIO AO EXERCÍCIO DO MANDATO PARLAMENTAR` | 1027 | **R$ 523.272.752,94** |
+| `ALUGUEL DE IMÓVEIS PARA ESCRITÓRIO POLÍTICO, COMPREENDENDO DESPESAS CONCERNENTES A ELES` | 1276 | **R$ 341.639.850,78** |
+| `TELEFONIA` | 5512 | **R$ 144.092.815,61** |
+| `SERVIÇO DE SEGURANÇA PRESTADO POR EMPRESA ESPECIALIZADA` | 298 | **R$ 115.778.778,63** |
+| `HOSPEDAGEM ,EXCETO DO PARLAMENTAR NO DISTRITO FEDERAL` | 1106 | **R$ 109.825.090,08** |
+| `PASSAGENS AÉREAS, AQUÁTICAS E TERRESTRES NACIONAIS` | 637 | **R$ 102.898.372,56** |
+| `LOCAÇÃO OU FRETAMENTO DE AERONAVES` | 142 | **R$ 92.954.312,62** |
+| `AQUISIÇÃO DE MATERIAL DE CONSUMO PARA USO NO ESCRITÓRIO POLÍTICO, INCLUSIVE AQUISIÇÃO OU LOCAÇÃO DE SOFTWARE, DESPESAS POSTAIS, AQUISIÇÃO DE PUBLICAÇÕES, LOCAÇÃO DE MÓVEIS E DE EQUIPAMENTOS` | 367 | **R$ 84.898.269,79** |
+| `SERVIÇO DE TÁXI, PEDÁGIO E ESTACIONAMENTO` | 9347 | **R$ 69.831.498,50** |
+| `PASSAGEM AÉREA - REEMBOLSO` | 26 | **R$ 23.155.135,93** |
+| `FORNECIMENTO DE ALIMENTAÇÃO DO PARLAMENTAR` | 7395 | **R$ 18.137.500,90** |
+| `SERVIÇOS POSTAIS` | 146 | **R$ 8.487.578,93** |
+| `ASSINATURA DE PUBLICAÇÕES` | 249 | **R$ 5.199.661,91** |
+| `PASSAGENS TERRESTRES, MARÍTIMAS OU FLUVIAIS` | 143 | **R$ 2.533.468,56** |
+| `PASSAGEM AÉREA - RPA` | 14 | **R$ 2.303.010,33** |
+| `AQUISIÇÃO DE TOKENS E CERTIFICADOS DIGITAIS` | 2 | **R$ 56.271,55** |
 
 ### 4.2 Bases de Dados Públicos Oficiais Incluídas no Projeto (`data/`)
 

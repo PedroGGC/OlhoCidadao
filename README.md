@@ -1,3 +1,5 @@
+> Atualização de dados em 22/10/2026: consulte [DATA_PIPELINE.md](DATA_PIPELINE.md) para a coleta bulk, 325.784 registros integrais, treinamento limitado e referências de custos. Os números e fluxos descritos anteriormente abaixo podem refletir a versão anterior.
+
 # OlhoCidadão — Auditoria Inteligente de Gastos Parlamentares (CEAP)
 
 Sistema híbrido de **Transparência Pública Brasileira** que combina uma **Rede Neural Multilayer Perceptron (MLP) construída 100% do zero em NumPy** com um **Analisador de Impacto Social** (integrado à API do Google Gemini e com motor analítico offline integrado). O projeto roda **100% em CPU local**, sem necessidade de GPU dedicada ou frameworks pesados de Deep Learning.
