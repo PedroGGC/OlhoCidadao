@@ -1,6 +1,6 @@
 import os
-import io
-import zipfile
+from src.bulk_data import download_expenses, money, save_csv
+from src.public_costs import write_indicators
 import requests
 import numpy as np
 import pandas as pd
@@ -31,9 +31,10 @@ PREFEITURAS_CSV_PATH = os.path.join("data", "prefeituras_municipios_tesouro_ibge
 PARTIDOS_CSV_PATH = os.path.join("data", "partidos_politicos_camara.csv")
 IBGE_UF_CSV_PATH = os.path.join("data", "estados_ibge_oficial.csv")
 INDICADORES_CSV_PATH = os.path.join("data", "indicadores_custos_publicos_br.csv")
+OBRAS_PROJETOS_CSV_PATH = os.path.join("data", "obras_projetos_publicos_br.csv")
 
 
-def download_massive_public_csvs() -> Tuple[pd.DataFrame, pd.DataFrame]:
+def download_massive_public_csvs(refresh: bool = True) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Baixa e salva os bancos de dados públicos INTEIROS (massivos) dos portais oficiais do Brasil:
       1. TODOS os 513 Deputados Federais em Exercício (`deputados_federais_camara.csv`)
@@ -50,300 +51,251 @@ def download_massive_public_csvs() -> Tuple[pd.DataFrame, pd.DataFrame]:
     # -------------------------------------------------------------------------
     # 1. Indicadores de Custos Públicos Oficiais (FNDE/MEC, DataSUS, DIEESE, SENASP)
     # -------------------------------------------------------------------------
-    df_indicadores = pd.DataFrame([
-        {
-            "indicador": "merenda_escolar_pnae",
-            "descricao": "Refeição Escolar Básica (PNAE/FNDE)",
-            "valor_unitario_brl": 1.50,
-            "orgao_fonte": "FNDE / Ministério da Educação (MEC)",
-            "portal_oficial": "https://www.gov.br/fnde/pt-br/acesso-a-informacao/acoes-e-programas/programas/pnae",
-        },
-        {
-            "indicador": "kit_escolar_aluno",
-            "descricao": "Kit Completo de Material Escolar Anual por Aluno",
-            "valor_unitario_brl": 120.00,
-            "orgao_fonte": "FNDE / Atas de Registro de Preços MEC",
-            "portal_oficial": "https://www.gov.br/fnde/pt-br",
-        },
-        {
-            "indicador": "computador_escola_publica",
-            "descricao": "Computador Desktop Educacional para Laboratório Público",
-            "valor_unitario_brl": 2800.00,
-            "orgao_fonte": "Portal Nacional de Contratações Públicas (PNCP)",
-            "portal_oficial": "https://pncp.gov.br/",
-        },
-        {
-            "indicador": "consulta_atencao_basica",
-            "descricao": "Consulta Médica em Atenção Primária / Especializada (Custo Médio SUS/Municipal)",
-            "valor_unitario_brl": 65.00,
-            "orgao_fonte": "Ministério da Saúde / DataSUS (SIGTAP)",
-            "portal_oficial": "http://sigtap.datasus.gov.br/",
-        },
-        {
-            "indicador": "kit_medicamentos_basicos",
-            "descricao": "Kit Mensal de Medicamentos da Assistência Farmacêutica Básica",
-            "valor_unitario_brl": 45.00,
-            "orgao_fonte": "Ministério da Saúde / RENAME - SUS",
-            "portal_oficial": "https://www.gov.br/saude/pt-br/composicao/sectics/daf",
-        },
-        {
-            "indicador": "cesta_basica_familiar",
-            "descricao": "Cesta Básica Nacional de Alimentos (Média Capitais)",
-            "valor_unitario_brl": 750.00,
-            "orgao_fonte": "DIEESE / Pesquisa Nacional da Cesta Básica de Alimentos",
-            "portal_oficial": "https://www.dieese.org.br/analisecestabasica/analiseCestaBasica.html",
-        },
-        {
-            "indicador": "salario_minimo",
-            "descricao": "Salário Mínimo Nacional de Referência",
-            "valor_unitario_brl": 1518.00,
-            "orgao_fonte": "Governo Federal / Portal da Transparência",
-            "portal_oficial": "https://portaldatransparencia.gov.br/",
-        },
-        {
-            "indicador": "equipamento_seguranca_uf",
-            "descricao": "Diária Operacional de Patrulhamento / EPI Policial Estadual",
-            "valor_unitario_brl": 420.00,
-            "orgao_fonte": "SENASP / Ministério da Justiça e Segurança Pública",
-            "portal_oficial": "https://www.gov.br/mj/pt-br/assuntos/sua-seguranca/seguranca-publica",
-        },
-    ])
-    df_indicadores.to_csv(INDICADORES_CSV_PATH, index=False, encoding="utf-8")
+    write_indicators(INDICADORES_CSV_PATH)
 
-    # -------------------------------------------------------------------------
-    # 2. Estados (27 UFs) — API Oficial do IBGE
-    # -------------------------------------------------------------------------
-    if not os.path.exists(IBGE_UF_CSV_PATH):
+    if refresh:
+        # -------------------------------------------------------------------------
+        # 2. Estados (27 UFs) — API Oficial do IBGE
+        # -------------------------------------------------------------------------
+        if not os.path.exists(IBGE_UF_CSV_PATH):
+            try:
+                r_ibge = requests.get(API_IBGE_UF_URL, headers=headers, timeout=15.0)
+                if r_ibge.status_code == 200:
+                    ufs_data = [
+                        {
+                            "id_ibge": u.get("id"),
+                            "siglaUF": u.get("sigla"),
+                            "nomeEstado": u.get("nome"),
+                            "idRegiao": u.get("regiao", {}).get("id"),
+                            "siglaRegiao": u.get("regiao", {}).get("sigla"),
+                            "nomeRegiao": u.get("regiao", {}).get("nome"),
+                        }
+                        for u in r_ibge.json()
+                    ]
+                    pd.DataFrame(ufs_data).sort_values("siglaUF").to_csv(
+                        IBGE_UF_CSV_PATH, index=False, encoding="utf-8"
+                    )
+            except Exception as exc:
+                print(f"[Aviso IBGE UFs] ({exc})")
+
+        # -------------------------------------------------------------------------
+        # 3. TODOS os 513 Deputados Federais em Exercício + Histórico Completo (~7.800)
+        # -------------------------------------------------------------------------
         try:
-            r_ibge = requests.get(API_IBGE_UF_URL, headers=headers, timeout=15.0)
-            if r_ibge.status_code == 200:
-                ufs_data = [
-                    {
-                        "id_ibge": u.get("id"),
-                        "siglaUF": u.get("sigla"),
-                        "nomeEstado": u.get("nome"),
-                        "idRegiao": u.get("regiao", {}).get("id"),
-                        "siglaRegiao": u.get("regiao", {}).get("sigla"),
-                        "nomeRegiao": u.get("regiao", {}).get("nome"),
-                    }
-                    for u in r_ibge.json()
-                ]
-                pd.DataFrame(ufs_data).sort_values("siglaUF").to_csv(
-                    IBGE_UF_CSV_PATH, index=False, encoding="utf-8"
-                )
-        except Exception as exc:
-            print(f"[Aviso IBGE UFs] ({exc})")
-
-    # -------------------------------------------------------------------------
-    # 3. TODOS os 513 Deputados Federais em Exercício + Histórico Completo (~7.800)
-    # -------------------------------------------------------------------------
-    try:
-        r_dep = requests.get(
-            f"{API_CAMARA_URL}/deputados",
-            params={"ordem": "ASC", "ordenarPor": "nome"},
-            headers=headers,
-            timeout=20.0,
-        )
-        if r_dep.status_code == 200:
-            deputados_todos = r_dep.json().get("dados", [])
-            if deputados_todos:
-                pd.DataFrame(deputados_todos).to_csv(DEPUTADOS_CSV_PATH, index=False, encoding="utf-8")
-                print(
-                    f"[Dados Massivos] TODOS os {len(deputados_todos)} Deputados Federais em exercício "
-                    f"salvos em: {DEPUTADOS_CSV_PATH}"
-                )
-    except Exception as exc:
-        print(f"[Aviso Deputados] ({exc})")
-
-    if not os.path.exists(DEPUTADOS_HIST_CSV_PATH):
-        try:
-            r_hist = requests.get(CAMARA_HISTORICO_DEPUTADOS_CSV, timeout=25.0)
-            if r_hist.status_code == 200:
-                with open(DEPUTADOS_HIST_CSV_PATH, "wb") as f:
-                    f.write(r_hist.content)
-                df_h = pd.read_csv(DEPUTADOS_HIST_CSV_PATH, sep=";", on_bad_lines="skip")
-                print(
-                    f"[Dados Massivos] Histórico completo de Deputados Federais ({len(df_h):,} registros) "
-                    f"salvo em: {DEPUTADOS_HIST_CSV_PATH}"
-                )
-        except Exception as exc:
-            print(f"[Aviso Histórico Deputados] ({exc})")
-
-    # -------------------------------------------------------------------------
-    # 4. TODOS os 81 Senadores da República em Exercício (Senado Federal)
-    # -------------------------------------------------------------------------
-    mapa_uf_senador = {}
-    mapa_partido_senador = {}
-    try:
-        r_sen = requests.get(API_SENADO_SENADORES_URL, headers=headers, timeout=20.0)
-        if r_sen.status_code == 200:
-            parlamentares = (
-                r_sen.json()
-                .get("ListaParlamentarEmExercicio", {})
-                .get("Parlamentares", {})
-                .get("Parlamentar", [])
+            r_dep = requests.get(
+                f"{API_CAMARA_URL}/deputados",
+                params={"ordem": "ASC", "ordenarPor": "nome"},
+                headers=headers,
+                timeout=20.0,
             )
-            senadores_rows = []
-            for p in parlamentares:
-                ident = p.get("IdentificacaoParlamentar", {})
-                cod = str(ident.get("CodigoParlamentar", ""))
-                nome = ident.get("NomeParlamentar", "")
-                partido = ident.get("SiglaPartidoParlamentar", "S/P")
-                uf = ident.get("UfParlamentar", "BR")
-                mapa_uf_senador[cod] = uf
-                mapa_uf_senador[nome.upper()] = uf
-                mapa_partido_senador[cod] = partido
-                mapa_partido_senador[nome.upper()] = partido
-
-                senadores_rows.append({
-                    "codigoSenador": cod,
-                    "nomeParlamentar": nome,
-                    "nomeCompleto": ident.get("NomeCompletoParlamentar", ""),
-                    "sexo": ident.get("SexoParlamentar", ""),
-                    "siglaPartido": partido,
-                    "siglaUF": uf,
-                    "email": ident.get("EmailParlamentar", ""),
-                    "urlFoto": ident.get("UrlFotoParlamentar", ""),
-                    "urlPagina": ident.get("UrlPaginaParlamentar", ""),
-                })
-            if senadores_rows:
-                pd.DataFrame(senadores_rows).to_csv(SENADORES_CSV_PATH, index=False, encoding="utf-8")
-                print(
-                    f"[Dados Massivos] TODOS os {len(senadores_rows)} Senadores da República em exercício "
-                    f"salvos em: {SENADORES_CSV_PATH}"
-                )
-    except Exception as exc:
-        print(f"[Aviso Senadores] ({exc})")
-
-    # -------------------------------------------------------------------------
-    # 5. TODAS as 5.570 Prefeituras Municipais + Governos Estaduais (Tesouro SICONFI + IBGE)
-    # -------------------------------------------------------------------------
-    if not os.path.exists(PREFEITURAS_CSV_PATH):
-        try:
-            r_tes = requests.get(API_TESOURO_ENTES_URL, headers=headers, timeout=25.0)
-            if r_tes.status_code == 200:
-                entes = r_tes.json().get("items", [])
-                if entes:
-                    df_entes = pd.DataFrame(entes)
-                    df_entes.to_csv(PREFEITURAS_CSV_PATH, index=False, encoding="utf-8")
+            if r_dep.status_code == 200:
+                deputados_todos = r_dep.json().get("dados", [])
+                if deputados_todos:
+                    pd.DataFrame(deputados_todos).to_csv(DEPUTADOS_CSV_PATH, index=False, encoding="utf-8")
                     print(
-                        f"[Dados Massivos] TODAS as Prefeituras e Entes Federativos ({len(df_entes):,} municípios/estados "
-                        f"com CNPJ e população) salvos em: {PREFEITURAS_CSV_PATH}"
+                        f"[Dados Massivos] TODOS os {len(deputados_todos)} Deputados Federais em exercício "
+                        f"salvos em: {DEPUTADOS_CSV_PATH}"
                     )
         except Exception as exc:
-            print(f"[Aviso Tesouro Prefeituras] ({exc})")
+            print(f"[Aviso Deputados] ({exc})")
 
-    # -------------------------------------------------------------------------
-    # 6. Partidos Políticos Oficiais
-    # -------------------------------------------------------------------------
-    if not os.path.exists(PARTIDOS_CSV_PATH):
+        if not os.path.exists(DEPUTADOS_HIST_CSV_PATH):
+            try:
+                r_hist = requests.get(CAMARA_HISTORICO_DEPUTADOS_CSV, timeout=25.0)
+                if r_hist.status_code == 200:
+                    with open(DEPUTADOS_HIST_CSV_PATH, "wb") as f:
+                        f.write(r_hist.content)
+                    df_h = pd.read_csv(DEPUTADOS_HIST_CSV_PATH, sep=";", on_bad_lines="skip")
+                    print(
+                        f"[Dados Massivos] Histórico completo de Deputados Federais ({len(df_h):,} registros) "
+                        f"salvo em: {DEPUTADOS_HIST_CSV_PATH}"
+                    )
+            except Exception as exc:
+                print(f"[Aviso Histórico Deputados] ({exc})")
+
+        # -------------------------------------------------------------------------
+        # 4. TODOS os 81 Senadores da República em Exercício (Senado Federal)
+        # -------------------------------------------------------------------------
+        mapa_uf_senador = {}
+        mapa_partido_senador = {}
         try:
-            r_part = requests.get(
-                f"{API_CAMARA_URL}/partidos",
-                params={"itens": 100, "ordem": "ASC", "ordenarPor": "sigla"},
-                headers=headers,
-                timeout=15.0,
-            )
-            if r_part.status_code == 200:
-                dados_part = r_part.json().get("dados", [])
-                if dados_part:
-                    pd.DataFrame(dados_part).to_csv(PARTIDOS_CSV_PATH, index=False, encoding="utf-8")
-        except Exception:
-            pass
+            r_sen = requests.get(API_SENADO_SENADORES_URL, headers=headers, timeout=20.0)
+            if r_sen.status_code == 200:
+                parlamentares = (
+                    r_sen.json()
+                    .get("ListaParlamentarEmExercicio", {})
+                    .get("Parlamentares", {})
+                    .get("Parlamentar", [])
+                )
+                senadores_rows = []
+                for p in parlamentares:
+                    ident = p.get("IdentificacaoParlamentar", {})
+                    cod = str(ident.get("CodigoParlamentar", ""))
+                    nome = ident.get("NomeParlamentar", "")
+                    partido = ident.get("SiglaPartidoParlamentar", "S/P")
+                    uf = ident.get("UfParlamentar", "BR")
+                    mapa_uf_senador[cod] = uf
+                    mapa_uf_senador[nome.upper()] = uf
+                    mapa_partido_senador[cod] = partido
+                    mapa_partido_senador[nome.upper()] = partido
+
+                    senadores_rows.append({
+                        "codigoSenador": cod,
+                        "nomeParlamentar": nome,
+                        "nomeCompleto": ident.get("NomeCompletoParlamentar", ""),
+                        "sexo": ident.get("SexoParlamentar", ""),
+                        "siglaPartido": partido,
+                        "siglaUF": uf,
+                        "email": ident.get("EmailParlamentar", ""),
+                        "urlFoto": ident.get("UrlFotoParlamentar", ""),
+                        "urlPagina": ident.get("UrlPaginaParlamentar", ""),
+                    })
+                if senadores_rows:
+                    pd.DataFrame(senadores_rows).to_csv(SENADORES_CSV_PATH, index=False, encoding="utf-8")
+                    print(
+                        f"[Dados Massivos] TODOS os {len(senadores_rows)} Senadores da República em exercício "
+                        f"salvos em: {SENADORES_CSV_PATH}"
+                    )
+        except Exception as exc:
+            print(f"[Aviso Senadores] ({exc})")
+
+        # -------------------------------------------------------------------------
+        # 5. TODAS as 5.570 Prefeituras Municipais + Governos Estaduais (Tesouro SICONFI + IBGE)
+        # -------------------------------------------------------------------------
+        if not os.path.exists(PREFEITURAS_CSV_PATH):
+            try:
+                r_tes = requests.get(API_TESOURO_ENTES_URL, headers=headers, timeout=25.0)
+                if r_tes.status_code == 200:
+                    entes = r_tes.json().get("items", [])
+                    if entes:
+                        df_entes = pd.DataFrame(entes)
+                        df_entes.to_csv(PREFEITURAS_CSV_PATH, index=False, encoding="utf-8")
+                        print(
+                            f"[Dados Massivos] TODAS as Prefeituras e Entes Federativos ({len(df_entes):,} municípios/estados "
+                            f"com CNPJ e população) salvos em: {PREFEITURAS_CSV_PATH}"
+                        )
+            except Exception as exc:
+                print(f"[Aviso Tesouro Prefeituras] ({exc})")
+
+        # -------------------------------------------------------------------------
+        # 6. Partidos Políticos Oficiais
+        # -------------------------------------------------------------------------
+        if not os.path.exists(PARTIDOS_CSV_PATH):
+            try:
+                r_part = requests.get(
+                    f"{API_CAMARA_URL}/partidos",
+                    params={"itens": 100, "ordem": "ASC", "ordenarPor": "sigla"},
+                    headers=headers,
+                    timeout=15.0,
+                )
+                if r_part.status_code == 200:
+                    dados_part = r_part.json().get("dados", [])
+                    if dados_part:
+                        pd.DataFrame(dados_part).to_csv(PARTIDOS_CSV_PATH, index=False, encoding="utf-8")
+            except Exception:
+                pass
 
     # -------------------------------------------------------------------------
     # 7. DUMP MASSIVO DE DESPESAS DO SENADO FEDERAL (CEAPS 2025 + 2026)
     # -------------------------------------------------------------------------
-    df_senado_ceaps = pd.DataFrame()
-    if os.path.exists(SENADO_COMPLETO_CSV_PATH):
-        try:
-            df_senado_ceaps = pd.read_csv(SENADO_COMPLETO_CSV_PATH, low_memory=False)
-            print(
-                f"[Dados Massivos] Dump completo CEAPS do Senado carregado: "
-                f"{len(df_senado_ceaps):,} notas fiscais ({SENADO_COMPLETO_CSV_PATH})"
-            )
-        except Exception:
-            df_senado_ceaps = pd.DataFrame()
+    if refresh:
+        # Só substitui os arquivos após validar ambos os anos e as duas Casas.
+        df_camara_completa, df_senado_ceaps = download_expenses()
+        for frame, path in [(df_camara_completa, CAMARA_COMPLETA_CSV_PATH),
+                            (df_senado_ceaps, SENADO_COMPLETO_CSV_PATH)]:
+            save_csv(frame, path)
+    else:
+        df_camara_completa = pd.read_csv(CAMARA_COMPLETA_CSV_PATH, dtype=str, keep_default_na=False)
+        df_senado_ceaps = pd.read_csv(SENADO_COMPLETO_CSV_PATH, dtype=str, keep_default_na=False)
 
-    if df_senado_ceaps.empty:
-        senado_registros = []
-        for url_ano in [API_SENADO_CEAPS_2026, API_SENADO_CEAPS_2025]:
-            try:
-                r_ceaps = requests.get(url_ano, headers=headers, timeout=30.0)
-                if r_ceaps.status_code == 200:
-                    senado_registros.extend(r_ceaps.json())
-            except Exception as exc:
-                print(f"[Aviso CEAPS Senado] ({exc})")
-
-        if senado_registros:
-            df_senado_ceaps = pd.DataFrame(senado_registros)
-            df_senado_ceaps["siglaUF"] = (
-                df_senado_ceaps["codSenador"].astype(str).map(mapa_uf_senador)
-                .fillna(df_senado_ceaps["nomeSenador"].str.upper().map(mapa_uf_senador))
-                .fillna("DF")
-            )
-            df_senado_ceaps["siglaPartido"] = (
-                df_senado_ceaps["codSenador"].astype(str).map(mapa_partido_senador)
-                .fillna(df_senado_ceaps["nomeSenador"].str.upper().map(mapa_partido_senador))
-                .fillna("SENADO")
-            )
-            df_senado_ceaps.to_csv(SENADO_COMPLETO_CSV_PATH, index=False, encoding="utf-8")
-            print(
-                f"[Dados Massivos] TODAS as {len(df_senado_ceaps):,} notas fiscais dos Senadores (CEAPS 2025/2026) "
-                f"salvas em: {SENADO_COMPLETO_CSV_PATH}"
-            )
-
-    # -------------------------------------------------------------------------
-    # 8. DUMP MASSIVO DE COTA PARLAMENTAR DA CÂMARA DOS DEPUTADOS (TODOS OS 513 DEPUTADOS)
-    # -------------------------------------------------------------------------
-    df_camara_completa = pd.DataFrame()
-    if os.path.exists(CAMARA_COMPLETA_CSV_PATH):
-        try:
-            df_camara_completa = pd.read_csv(CAMARA_COMPLETA_CSV_PATH, low_memory=False)
-            print(
-                f"[Dados Massivos] Dump completo da Câmara carregado: "
-                f"{len(df_camara_completa):,} notas fiscais ({CAMARA_COMPLETA_CSV_PATH})"
-            )
-        except Exception:
-            df_camara_completa = pd.DataFrame()
-
-    if df_camara_completa.empty:
-        dfs_bulk = []
-        for label, zip_url in [("2026", CAMARA_BULK_ZIP_2026), ("2025", CAMARA_BULK_ZIP_2025)]:
-            try:
-                print(f"[Dados Massivos] Baixando base nacional completa da Câmara ({label}): {zip_url} ...")
-                rz = requests.get(zip_url, timeout=45.0)
-                if rz.status_code == 200:
-                    with zipfile.ZipFile(io.BytesIO(rz.content)) as zf:
-                        csv_name = zf.namelist()[0]
-                        df_ano = pd.read_csv(
-                            zf.open(csv_name),
-                            sep=";",
-                            dtype=str,
-                            on_bad_lines="skip",
-                        )
-                        # Filtra apenas registros de parlamentares com UF e valor líquido válido
-                        cols_keep = [
-                            "ideCadastro", "txNomeParlamentar", "sgPartido", "sgUF",
-                            "txtDescricao", "txtFornecedor", "txtCNPJCPF", "txtNumero",
-                            "datEmissao", "numAno", "numMes", "vlrLiquido", "urlDocumento"
-                        ]
-                        cols_presentes = [c for c in cols_keep if c in df_ano.columns]
-                        df_ano = df_ano[cols_presentes].dropna(subset=["txNomeParlamentar", "vlrLiquido"])
-                        dfs_bulk.append(df_ano)
-                        print(f"  -> Ano {label}: {len(df_ano):,} notas fiscais extraídas!")
-            except Exception as exc:
-                print(f"[Aviso Bulk Câmara {label}] ({exc})")
-
-        if dfs_bulk:
-            df_camara_completa = pd.concat(dfs_bulk, ignore_index=True)
-            df_camara_completa.to_csv(CAMARA_COMPLETA_CSV_PATH, index=False, encoding="utf-8")
-            print(
-                f"[Dados Massivos] Base completa da Câmara dos Deputados salva com "
-                f"{len(df_camara_completa):,} notas fiscais reais em: {CAMARA_COMPLETA_CSV_PATH}"
-            )
-
+    build_obras_projetos_publicos_csv()
     return df_camara_completa, df_senado_ceaps
+
+
+def build_obras_projetos_publicos_csv() -> pd.DataFrame:
+    """Catálogo comparativo estimado, sem simular convênios ou repasses executados."""
+    if os.path.exists(OBRAS_PROJETOS_CSV_PATH):
+        existing = pd.read_csv(OBRAS_PROJETOS_CSV_PATH, low_memory=False)
+        if 'tipoRegistro' in existing and existing['tipoRegistro'].eq('oficial').any():
+            return existing  # Atualização municipal: scripts/update_public_works.py --refresh.
+
+    mapa_regiao = {
+        "AC": "Norte", "AM": "Norte", "AP": "Norte", "PA": "Norte", "RO": "Norte", "RR": "Norte", "TO": "Norte",
+        "AL": "Nordeste", "BA": "Nordeste", "CE": "Nordeste", "MA": "Nordeste", "PB": "Nordeste",
+        "PE": "Nordeste", "PI": "Nordeste", "RN": "Nordeste", "SE": "Nordeste",
+        "DF": "Centro-Oeste", "GO": "Centro-Oeste", "MS": "Centro-Oeste", "MT": "Centro-Oeste",
+        "ES": "Sudeste", "MG": "Sudeste", "RJ": "Sudeste", "SP": "Sudeste",
+        "PR": "Sul", "RS": "Sul", "SC": "Sul",
+    }
+
+    catalogo_setores = [
+        # 1. SAÚDE
+        {"setor": "Saúde", "subTipo": "Unidade Básica de Saúde (UBS)", "titulo": "Reforma e Ampliação de Unidade Básica de Saúde (UBS Porte II)", "orgaoFonte": "Fundo Nacional de Saúde (FNS/SUS) · Novo PAC", "custoTotalBase": 1150000.0, "aporteMensalBase": 85000.0, "unidadeImpacto": "atendimentos médicos/mês na UBS", "fatorUnidade": 65.0},
+        {"setor": "Saúde", "subTipo": "Urgência e Emergência (SAMU/UPA)", "titulo": "Aquisição de Ambulância SAMU 192 Suporte Avançado e Equipamentos UPA", "orgaoFonte": "Ministério da Saúde · Renovação Frota SAMU", "custoTotalBase": 360000.0, "aporteMensalBase": 42000.0, "unidadeImpacto": "remoções de urgência e plantões", "fatorUnidade": 380.0},
+        {"setor": "Saúde", "subTipo": "Atenção Primária e Farmácia Básica", "titulo": "Custeio de Equipes Saúde da Família (eSF), Saúde Bucal e Farmácia Básica", "orgaoFonte": "DataSUS / SIGTAP · Atenção Primária", "custoTotalBase": 480000.0, "aporteMensalBase": 36000.0, "unidadeImpacto": "consultas e kits de medicamentos essenciais", "fatorUnidade": 55.0},
+        {"setor": "Saúde", "subTipo": "Saúde Mental e Especialidades (CAPS)", "titulo": "Implantação de Centro de Atenção Psicossocial (CAPS) e Policlínica Regional", "orgaoFonte": "Ministério da Saúde / ObrasGov.br", "custoTotalBase": 1680000.0, "aporteMensalBase": 110000.0, "unidadeImpacto": "procedimentos e exames especializados", "fatorUnidade": 110.0},
+        # 2. EDUCAÇÃO
+        {"setor": "Educação", "subTipo": "Educação Infantil (Creches)", "titulo": "Construção de Creche e Pré-Escola Pró-Infância Tempo Integral", "orgaoFonte": "FNDE / SIMEC · Ministério da Educação", "custoTotalBase": 2350000.0, "aporteMensalBase": 145000.0, "unidadeImpacto": "vagas em creche pública tempo integral", "fatorUnidade": 4500.0},
+        {"setor": "Educação", "subTipo": "Infraestrutura Escolar e Climatização", "titulo": "Reforma de Escola Pública, Climatização de Salas e Cobertura de Quadra", "orgaoFonte": "FNDE / Novo PAC Educação Básica", "custoTotalBase": 690000.0, "aporteMensalBase": 54000.0, "unidadeImpacto": "alunos beneficiados com infraestrutura", "fatorUnidade": 450.0},
+        {"setor": "Educação", "subTipo": "Tecnologia e Laboratórios", "titulo": "Implantação de Laboratório de Informática, Robótica e Internet de Alta Velocidade", "orgaoFonte": "MEC / PNCP · Programa Escolas Conectadas", "custoTotalBase": 210000.0, "aporteMensalBase": 26000.0, "unidadeImpacto": "computadores educacionais instalados", "fatorUnidade": 2800.0},
+        {"setor": "Educação", "subTipo": "Transporte e Alimentação Escolar", "titulo": "Aquisição de Ônibus Escolar Acessível (Caminho da Escola) e Insumos PNAE", "orgaoFonte": "FNDE / MEC · Caminho da Escola & PNAE", "custoTotalBase": 420000.0, "aporteMensalBase": 35000.0, "unidadeImpacto": "alunos transportados e alimentados", "fatorUnidade": 120.0},
+        {"setor": "Educação", "subTipo": "Ensino Técnico e Profissional (IFs)", "titulo": "Expansão de Laboratórios e Oficinas de Instituto Federal Profissionalizante", "orgaoFonte": "SETEC / MEC · Rede Federal de Educação Profissional", "custoTotalBase": 1950000.0, "aporteMensalBase": 125000.0, "unidadeImpacto": "vagas em cursos técnicos gratuitos", "fatorUnidade": 1800.0},
+        # 3. INFRAESTRUTURA URBANA
+        {"setor": "Infraestrutura Urbana", "subTipo": "Pavimentação e Drenagem Urbana", "titulo": "Obras de Drenagem Pluvial, Pavimentação Asfáltica e Calçadas Acessíveis", "orgaoFonte": "ObrasGov.br / SINAPI · Ministério das Cidades", "custoTotalBase": 1820000.0, "aporteMensalBase": 128000.0, "unidadeImpacto": "m² de vias urbanas pavimentadas e drenadas", "fatorUnidade": 210.0},
+        {"setor": "Infraestrutura Urbana", "subTipo": "Mobilidade e Transporte Coletivo", "titulo": "Implantação de Corredor de Transporte Público, Ciclovias e Abrigos de Ônibus", "orgaoFonte": "Ministério das Cidades · Mobilidade Urbana", "custoTotalBase": 2200000.0, "aporteMensalBase": 140000.0, "unidadeImpacto": "passageiros beneficiados diariamente", "fatorUnidade": 95.0},
+        {"setor": "Infraestrutura Urbana", "subTipo": "Iluminação Pública LED", "titulo": "Modernização de Iluminação Pública com Luminárias LED de Alta Eficiência", "orgaoFonte": "Procel Reluz / Eletrobras · Transferegov", "custoTotalBase": 640000.0, "aporteMensalBase": 48000.0, "unidadeImpacto": "pontos de iluminação LED instalados", "fatorUnidade": 680.0},
+        # 4. RODOVIAS E TRANSPORTES
+        {"setor": "Rodovias e Transportes", "subTipo": "Estradas Vicinais e Pontes", "titulo": "Recuperação de Estradas Vicinais e Pontes de Concreto para Escoamento", "orgaoFonte": "Transferegov / MAPA & MDR", "custoTotalBase": 1180000.0, "aporteMensalBase": 82000.0, "unidadeImpacto": "km de estradas vicinais recuperadas", "fatorUnidade": 18500.0},
+        {"setor": "Rodovias e Transportes", "subTipo": "Manutenção Rodoviária e Segurança Viária", "titulo": "Restauração de Pavimento, Sinalização e Passarelas em Travessia Urbana", "orgaoFonte": "DNIT / DER Estadual · ObrasGov.br", "custoTotalBase": 2900000.0, "aporteMensalBase": 175000.0, "unidadeImpacto": "metros lineares de rodovia restaurada", "fatorUnidade": 950.0},
+        # 5. SANEAMENTO E RECURSOS HÍDRICOS
+        {"setor": "Saneamento e Recursos Hídricos", "subTipo": "Abastecimento de Água", "titulo": "Ampliação de Sistema de Abastecimento de Água, Adutora e Reservatório", "orgaoFonte": "ObrasGov.br / Funasa · Novo PAC Água", "custoTotalBase": 1650000.0, "aporteMensalBase": 112000.0, "unidadeImpacto": "domicílios conectados à água potável", "fatorUnidade": 1650.0},
+        {"setor": "Saneamento e Recursos Hídricos", "subTipo": "Esgotamento Sanitário (ETE)", "titulo": "Implantação de Rede Coletora de Esgoto e Estação de Tratamento (ETE)", "orgaoFonte": "Ministério das Cidades / Caixa · Saneamento", "custoTotalBase": 2750000.0, "aporteMensalBase": 165000.0, "unidadeImpacto": "famílias atendidas com coleta de esgoto", "fatorUnidade": 2100.0},
+        {"setor": "Saneamento e Recursos Hídricos", "subTipo": "Contenção de Encostas e Macrodrenagem", "titulo": "Obras de Contenção de Encostas e Controle de Cheias em Área de Risco", "orgaoFonte": "Defesa Civil Nacional / MIDR · Novo PAC", "custoTotalBase": 2150000.0, "aporteMensalBase": 138000.0, "unidadeImpacto": "famílias protegidas em áreas de risco", "fatorUnidade": 3200.0},
+        # 6. HABITAÇÃO
+        {"setor": "Habitação", "subTipo": "Moradia Popular e Urbanização", "titulo": "Construção de Unidades Habitacionais e Urbanização de Assentamentos", "orgaoFonte": "Ministério das Cidades · Minha Casa, Minha Vida / FNHIS", "custoTotalBase": 3200000.0, "aporteMensalBase": 180000.0, "unidadeImpacto": "melhorias habitacionais e regularizações", "fatorUnidade": 3500.0},
+        # 7. SEGURANÇA E DEFESA CIVIL
+        {"setor": "Segurança e Defesa Civil", "subTipo": "Patrulhamento e Videomonitoramento", "titulo": "Aparelhamento de Patrulhamento Comunitário, Viaturas e Central de Monitoramento", "orgaoFonte": "SENASP / Fundo Nacional de Segurança Pública", "custoTotalBase": 560000.0, "aporteMensalBase": 44000.0, "unidadeImpacto": "diárias operacionais e equipamentos táticos", "fatorUnidade": 420.0},
+        {"setor": "Segurança e Defesa Civil", "subTipo": "Corpo de Bombeiros e Defesa Civil", "titulo": "Modernização de Quartel do Corpo de Bombeiros e Kit de Resgate/Defesa Civil", "orgaoFonte": "MJSP / Defesa Civil · Transferegov", "custoTotalBase": 890000.0, "aporteMensalBase": 62000.0, "unidadeImpacto": "atendimentos de emergência e prevenção", "fatorUnidade": 310.0},
+        # 8. ASSISTÊNCIA SOCIAL E TRABALHO
+        {"setor": "Assistência Social e Trabalho", "subTipo": "CRAS / CREAS / Casa da Mulher", "titulo": "Implantação e Custeio de CRAS, Casa da Mulher e Segurança Alimentar (Cozinha Solidária)", "orgaoFonte": "MDS / MDHC · SUAS & Segurança Alimentar", "custoTotalBase": 720000.0, "aporteMensalBase": 48000.0, "unidadeImpacto": "famílias vulneráveis assistidas e cestas básicas", "fatorUnidade": 250.0},
+        # 9. ESPORTE, CULTURA E LAZER
+        {"setor": "Esporte, Cultura e Lazer", "subTipo": "Espaços Esportivos e Culturais", "titulo": "Construção de Espaço Esportivo Comunitário, Biblioteca e Centro Cultural (CEU)", "orgaoFonte": "Ministério do Esporte & MinC · Novo PAC", "custoTotalBase": 1250000.0, "aporteMensalBase": 78000.0, "unidadeImpacto": "jovens atendidos em oficinas e esportes", "fatorUnidade": 160.0},
+        # 10. DESENVOLVIMENTO REGIONAL E ENERGIA
+        {"setor": "Desenvolvimento Regional e Energia", "subTipo": "Agricultura Familiar e Energia Solar", "titulo": "Apoio à Agricultura Familiar, Feira Coberta e Geração Fotovoltaica em Prédios Públicos", "orgaoFonte": "MDA / MME / Codevasf · Transferegov", "custoTotalBase": 840000.0, "aporteMensalBase": 58000.0, "unidadeImpacto": "produtores familiares e prédios públicos atendidos", "fatorUnidade": 600.0},
+    ]
+
+    # Valores centrais solicitados, para o escopo completo de cada intervenção.
+    ajustes = {
+        'Unidade Básica de Saúde (UBS)': ('Reforma de Unidade Básica de Saúde', 250000.0),
+        'Urgência e Emergência (SAMU/UPA)': ('Aquisição de Ambulância SAMU', 280000.0),
+        'Infraestrutura Escolar e Climatização': ('Climatização de Escola Pública', 130000.0),
+        'Pavimentação e Drenagem Urbana': ('Pavimentação de Vias — trecho de referência', 450000.0),
+    }
+    registros = []
+    for uf, regiao in sorted(mapa_regiao.items()):
+        for idx, item in enumerate(catalogo_setores):
+            titulo, custo = ajustes.get(item['subTipo'], (item['titulo'], item['custoTotalBase']))
+            fator = {'Saúde': 120.0, 'Educação': 480.0,
+                     'Segurança e Defesa Civil': 350.0,
+                     'Assistência Social e Trabalho': 350.0}.get(item['setor'], item['fatorUnidade'])
+            unidade = {'Saúde': 'consultas especializadas (estimativa)',
+                       'Educação': 'aluno-mês (referência aproximada FUNDEB)',
+                       'Segurança e Defesa Civil': 'diárias operacionais (estimativa)',
+                       'Assistência Social e Trabalho': 'cestas de assistência (estimativa)'}.get(item['setor'], item['unidadeImpacto'])
+            for ano in (2025, 2026):
+                registros.append({
+                    'codigoObra': f'REF-{ano}-{uf}-{idx:02d}', 'titulo': titulo,
+                    'setor': item['setor'], 'subTipo': item['subTipo'],
+                    'municipio': 'Referência estadual — sem município contratado',
+                    'uf': uf, 'regiao': regiao, 'ano': ano, 'mes': 0,
+                    'situacao': 'Referência de custo estimada', 'execucaoFisicaPct': None,
+                    'valorTotalObra': custo, 'aporteNecessarioPeriodo': custo,
+                    'orgaoFonte': 'Estimativa comparativa; não representa repasse contratado',
+                    'unidadeImpacto': unidade, 'fatorUnidade': fator,
+                })
+    df_obras = pd.DataFrame(registros)
+    save_csv(df_obras, OBRAS_PROJETOS_CSV_PATH)
+    return df_obras
 
 
 def normalize_zscore(
@@ -365,8 +317,9 @@ def normalize_zscore(
 
 
 def load_and_preprocess_data(
-    target_records: int = 12000,
+    target_records: int = None,
     seed: int = 42,
+    refresh: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, Dict[str, Any]]:
     """
     Executa o pipeline completo sobre os bancos de dados públicos massivos:
@@ -380,7 +333,7 @@ def load_and_preprocess_data(
        quando `valorLiquido > media + 1.2 * desvio_padrao`.
     5. Salva dataset processado em `data/processed_dataset.csv`.
     """
-    df_camara_full, df_senado_full = download_massive_public_csvs()
+    df_camara_full, df_senado_full = download_massive_public_csvs(refresh=refresh)
 
     partes_padronizadas = []
 
@@ -415,7 +368,7 @@ def load_and_preprocess_data(
     # Padroniza dados massivos do Senado Federal (todos os 81 senadores)
     if not df_senado_full.empty:
         dfs = df_senado_full.copy()
-        dfs["valorLiquido"] = pd.to_numeric(dfs["valorReembolsado"], errors="coerce")
+        dfs["valorLiquido"] = money(dfs["valorReembolsado"])
         dfs = dfs[dfs["valorLiquido"] > 0].dropna(subset=["nomeSenador", "tipoDespesa"])
 
         dfs_pad = pd.DataFrame({
@@ -423,7 +376,7 @@ def load_and_preprocess_data(
             "nomeParlamentar": dfs["nomeSenador"].astype(str).str.strip() + " (Senador)",
             "cargoPublico": "SENADOR DA REPÚBLICA",
             "siglaPartido": dfs.get("siglaPartido", pd.Series(["SENADO"] * len(dfs))).fillna("SENADO").astype(str).str.upper(),
-            "siglaUF": dfs.get("siglaUF", pd.Series(["DF"] * len(dfs))).fillna("DF").astype(str).str.upper(),
+            "siglaUF": dfs.get("siglaUF", pd.Series(["N/I"] * len(dfs))).fillna("N/I").astype(str).str.upper(),
             "tipoDespesa": dfs["tipoDespesa"].astype(str).str.strip().str.upper().str.rstrip("."),
             "nomeFornecedor": dfs["fornecedor"].fillna("NÃO INFORMADO").astype(str).str.strip(),
             "cnpjCpfFornecedor": dfs["cpfCnpj"].fillna("").astype(str).str.strip(),
@@ -443,17 +396,10 @@ def load_and_preprocess_data(
         f"{len(df_unificado_total):,} notas fiscais reais disponíveis!"
     )
 
-    # Salva amostra estratificada em `raw_despesas_camara.csv` para inspeção rápida no Git,
-    # mas mantém TODAS as 355.546 notas fiscais reais em `df` para o pré-processamento e Rede Neural!
-    if len(df_unificado_total) > target_records:
-        df_raw_sample = df_unificado_total.sample(n=target_records, random_state=seed).reset_index(drop=True)
-    else:
-        df_raw_sample = df_unificado_total.copy()
+    # O parâmetro legado target_records não trunca mais os CSVs.
+    save_csv(df_unificado_total, RAW_CSV_PATH)
 
-    df_raw_sample.to_csv(RAW_CSV_PATH, index=False, encoding="utf-8")
-    print(f"[Dados Públicos] Amostra de auditoria salva em: {RAW_CSV_PATH} ({len(df_raw_sample):,} linhas)")
-
-    # Usa 100% dos dados consolidados atuais (Câmara + Senado) para o modelo e métricas
+    # Usa 100% dos dados consolidados para inferência e métricas
     df = df_unificado_total.copy()
 
     # Mapeamento das categorias ordenadas pela mediana de gasto
@@ -484,11 +430,7 @@ def load_and_preprocess_data(
         # Regra principal solicitada: media + 1.2 * desvio_padrao
         limiar_padrao = media_cat + 1.2 * std_cat
 
-        prop_acima = np.mean(valores > limiar_padrao)
-        if prop_acima < 0.20 and len(valores) >= 5:
-            limiar_efetivo = float(min(limiar_padrao, np.percentile(valores, 74)))
-        else:
-            limiar_efetivo = limiar_padrao
+        limiar_efetivo = limiar_padrao
 
         valores_normais = valores[valores <= limiar_efetivo]
         media_aceitavel = float(np.mean(valores_normais)) if len(valores_normais) > 0 else media_cat * 0.6
@@ -511,14 +453,10 @@ def load_and_preprocess_data(
     df["target"] = (df["valorLiquido"] > df["limiarCategoria"]).astype(int)
 
     df = df.sample(frac=1.0, random_state=seed).reset_index(drop=True)
-    df_proc_sample = df.head(target_records)
-    df_proc_sample.to_csv(PROCESSED_CSV_PATH, index=False, encoding="utf-8")
-    print(
-        f"[Dados Públicos] Base completa em memória: {len(df):,} linhas "
-        f"(amostra exportada em {PROCESSED_CSV_PATH}: {len(df_proc_sample):,} linhas)"
-    )
+    save_csv(df, PROCESSED_CSV_PATH)
+    print(f'[Dados Públicos] Dataset integral exportado: {len(df):,} linhas')
 
-    # Extração das 5 features numéricas exigidas para a matriz X (todas as 355.546 linhas)
+    # Extração das 5 features numéricas em toda a base
     feature_cols = ["valorLiquido", "codTipoDespesa", "mes", "codPartido", "codUF"]
     X = df[feature_cols].to_numpy(dtype=np.float64)
     y = df["target"].to_numpy(dtype=np.int64)

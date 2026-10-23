@@ -403,7 +403,7 @@ class NnModel:
 
         fig.suptitle(
             f"OlhoCidadão — Rede Neural MLP do Zero em NumPy ({self.n_input} → {self.n_hidden} {self.activation} → {self.n_output} softmax)\n"
-            f"Base Consolidada Integral: {n_total:,} Notas Fiscais Reais (Câmara CEAP + Senado CEAPS · 513 Deputados + 81 Senadores)".replace(",", "."),
+            f"Subconjunto de treino/validação: {n_total:,} notas reais (Câmara CEAP + Senado CEAPS)".replace(",", "."),
             fontsize=11.5,
             fontweight="bold",
             color="#e7ecf3",
@@ -422,10 +422,7 @@ class NnModel:
             classes_preditas (np.ndarray): Vetor com 0 (Normal) ou 1 (Gasto Atípico/Suspeito).
             probabilidades_atipico (np.ndarray): Probabilidade [0.0 a 1.0] de pertencer à classe 1.
         """
-        z1 = np.dot(X, self.W1) + self.b1
-        a1 = self._activate_hidden(z1)
-        z2 = np.dot(a1, self.W2) + self.b2
-        probs = self._softmax(z2)
+        probs = self.forward(X)
 
         classes_preditas = np.argmax(probs, axis=1)
         probabilidades_atipico = probs[:, 1]

@@ -3,17 +3,7 @@ from datetime import datetime
 import pandas as pd
 from dotenv import load_dotenv
 
-# Custos médios públicos de referência no Brasil (R$)
-CUSTOS_REFERENCIA_BR = {
-    "merenda_escolar_pnae": 1.50,          # Refeição escolar média (PNAE/FNDE)
-    "kit_escolar_aluno": 120.00,           # Kit completo de material escolar anual
-    "computador_escola_publica": 2800.00,  # Desktop educativo para laboratório público
-    "consulta_atencao_basica": 65.00,      # Custo médio de consulta médica básica municipal/SUS
-    "kit_medicamentos_basicos": 45.00,     # Kit mensal de medicamentos da Farmácia Básica
-    "cesta_basica_familiar": 750.00,       # Cesta básica nacional (referência DIEESE)
-    "salario_minimo": 1518.00,             # Salário mínimo de referência
-    "equipamento_seguranca_uf": 420.00,    # Custo diário de patrulhamento/insumo tático estadual
-}
+from src.public_costs import CUSTOS_REFERENCIA_BR
 
 
 def format_brl(valor: float) -> str:
@@ -67,7 +57,7 @@ def _call_gemini_analysis(casos_top: list, resumo_global: dict) -> str:
             "1. Uma análise crítica sobre os padrões de gastos atípicos detectados.\n"
             "2. O que o valor projetado em 5 anos compraria em:\n"
             "   - Educação (merendas escolares a R$ 1,50, kits escolares a R$ 120,00, computadores);\n"
-            "   - Saúde Básica (consultas a R$ 65,00, kits de medicamentos básicos a R$ 45,00);\n"
+            "   - Saúde Básica (consultas a R$ 120,00, kits de medicamentos básicos a R$ 45,00);\n"
             "   - Segurança Pública e Assistência Social nos estados (UFs) desses parlamentares.\n"
             "3. Recomendações de transparência ativa e controle social."
         )
@@ -119,7 +109,7 @@ def generate_social_impact_report(
 
     df_calc["excessoMensal"] = (
         df_calc["valorLiquido"] - df_calc["mediaAceitavelCategoria"]
-    ).clip(lower=df_calc["valorLiquido"] * 0.30)
+    ).clip(lower=0)
 
     # Projeção acumulada em 60 meses (5 anos de impacto orçamentário)
     df_calc["impacto5Anos"] = df_calc["excessoMensal"] * 60.0
@@ -178,18 +168,20 @@ def generate_social_impact_report(
     linhas = [
         "# Relatório de Auditoria Inteligente e Impacto Social (CEAP)",
         "",
-        f"**Data da Auditoria:** {data_hora}  ",
+        f"**Data da Auditoria:** {data_hora}",
         "**Motor de Detecção:** Rede Neural Multilayer Perceptron (`NnModel` 100% NumPy com ativação `tanh`)  ",
         f"**Motor de Parecer Social:** {modo_geracao}  ",
         "",
         "---",
         "",
-        "## 1. Resumo Executivo da Auditoria no Conjunto de Teste",
+        "As classes são rótulos estatísticos, não comprovação de irregularidade. Custos são referências comparativas; a projeção de 60 meses é hipotética e não representa gasto observado.",
+        "",
+        "## 1. Resumo Executivo da Auditoria na Base Integral",
         "",
         f"- **Gastos Classificados como Atípicos/Suspeitos (Classe 1):** `{total_suspeitos}` notas fiscais auditadas",
-        f"- **Volume Mensal Auditado nesses Casos:** `{format_brl(gasto_mensal_total)}`",
+        f"- **Volume Auditado nesses Casos (2025–2026):** `{format_brl(gasto_mensal_total)}`",
         f"- **Excesso Mensal Acima da Média Aceitável por Categoria:** `{format_brl(excesso_mensal_total)}`",
-        f"- **Projeção Acumulada de Desperdício em 5 Anos (60 meses):** **{format_brl(desperdicio_total_5_anos)}**",
+        f"- **Cenário hipotético: repetição do excedente por 60 meses:** **{format_brl(desperdicio_total_5_anos)}**",
         "",
         "---",
         "",
@@ -202,10 +194,10 @@ def generate_social_impact_report(
         f"| **Educação Básica** | Merendas Escolares (PNAE/FNDE) | R$ 1,50 | **{format_int(total_merendas)} refeições** | FNDE / MEC |",
         f"| **Educação Básica** | Kits Completos de Material Escolar | R$ 120,00 | **{format_int(total_kits_escolares)} alunos atendidos** | FNDE / MEC |",
         f"| **Inclusão Digital** | Computadores para Escolas Públicas | R$ 2.800,00 | **{format_int(total_computadores)} equipamentos** | PNCP / Gov.br |",
-        f"| **Saúde Pública (SUS)** | Consultas Médicas de Atenção Primária | R$ 65,00 | **{format_int(total_consultas_sus)} consultas** | DataSUS / SIGTAP |",
+        f"| **Saúde Pública (SUS)** | Consultas Médicas de Atenção Primária | R$ 120,00 | **{format_int(total_consultas_sus)} consultas** | CISCOPAR (referência de credenciamento) |",
         f"| **Saúde Pública (SUS)** | Kits Mensais da Farmácia Básica | R$ 45,00 | **{format_int(total_medicamentos)} tratamentos mensais** | RENAME / MS |",
-        f"| **Segurança Pública** | Diárias Operacionais de Patrulhamento/EPIs | R$ 420,00 | **{format_int(total_diarias_seguranca)} diárias táticas** | SENASP / MJSP |",
-        f"| **Assistência Social** | Cestas Básicas Familiares (Ref. DIEESE) | R$ 750,00 | **{format_int(total_cestas_basicas)} famílias assistidas** | DIEESE |",
+        f"| **Segurança Pública** | Diárias Operacionais de Patrulhamento/EPIs | R$ 350,00 | **{format_int(total_diarias_seguranca)} diárias táticas** | Estimativa do projeto |",
+        f"| **Assistência Social** | Cestas Básicas Familiares (estimativa assistencial) | R$ 350,00 | **{format_int(total_cestas_basicas)} famílias assistidas** | Estimativa do projeto |",
         f"| **Renda do Trabalho** | Salários Mínimos Equivalentes | R$ 1.518,00 | **{format_int(total_salarios_minimos)} salários mínimos** | Portal da Transparência |",
         "",
         "---",

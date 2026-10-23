@@ -2,6 +2,8 @@ import os
 import sys
 import json
 import shutil
+import argparse
+import gzip
 import numpy as np
 import pandas as pd
 
@@ -14,8 +16,12 @@ from src.data_fetcher import (
     normalize_zscore,
     DEPUTADOS_CSV_PATH,
     SENADORES_CSV_PATH,
+    OBRAS_PROJETOS_CSV_PATH,
 )
 from src.nn_model import NnModel
+from src.bulk_data import save_csv, publish_file
+from src.public_works import works_payload
+from src.summary_export import write_summary
 from src.impact_analyzer import generate_social_impact_report, format_brl, CUSTOS_REFERENCIA_BR
 
 MAPA_REGIAO_UF = {
@@ -88,7 +94,7 @@ def export_web_dashboard_payload(
     X_all_raw: np.ndarray,
     metadata: dict,
     metrics: dict,
-    max_web_records: int = 3000,
+    max_web_records: int = None,
 ) -> str:
     """
     Exporta os dados auditados (Deputados Federais e Senadores), séries mensais/anuais,
@@ -104,62 +110,35 @@ def export_web_dashboard_payload(
 
     fotos_map = _load_fotos_parlamentares()
 
-    # Inferência vetorial da NnModel em todo o conjunto para alimentar a busca interativa
-    X_all_norm, _, _ = normalize_zscore(X_all_raw, mean=mean_train, std=std_train)
-    all_preds, all_probs = nn.predict(X_all_norm)
-
+    # Todas as inferências já foram calculadas na base integral.
     df_calc = df_all.copy()
-    df_calc["classePredita"] = all_preds
-    df_calc["probabilidadeAtipico"] = all_probs
-    df_calc["excessoMensal"] = np.where(
-        df_calc["classePredita"] == 1,
-        np.maximum(
-            df_calc["valorLiquido"] - df_calc["mediaAceitavelCategoria"],
-            df_calc["valorLiquido"] * 0.30,
-        ),
-        0.0,
-    )
-    df_calc["impacto5Anos"] = df_calc["excessoMensal"] * 60.0
-    df_calc["regiao"] = df_calc["siglaUF"].map(MAPA_REGIAO_UF).fillna("Centro-Oeste")
-
-    # Seleciona amostra rica (garantindo cobertura de Deputados, Senadores, meses, anos e UFs)
-    df_sample = df_calc.head(max_web_records).copy()
-
-    registros_web = []
-    for _, row in df_sample.iterrows():
-        nome_raw = str(row.get("nomeParlamentar", ""))
-        nome_limpo = (
-            nome_raw.replace(" (Dep. Federal)", "")
-            .replace(" (Senador)", "")
-            .strip()
-        )
-        id_parl = str(int(row.get("idDeputado", 0)))
-        foto_url = fotos_map.get(id_parl) or fotos_map.get(nome_limpo.upper()) or ""
-
-        registros_web.append({
-            "idParlamentar": int(row.get("idDeputado", 0)),
-            "nomeParlamentar": nome_limpo,
-            "nomeExibicao": nome_raw,
-            "cargo": str(row.get("cargoPublico", "DEPUTADO FEDERAL")),
-            "siglaPartido": str(row.get("siglaPartido", "")),
-            "siglaUF": str(row.get("siglaUF", "")),
-            "regiao": str(row.get("regiao", "Sudeste")),
-            "tipoDespesa": str(row.get("tipoDespesa", "")),
-            "codTipoDespesa": int(row.get("codTipoDespesa", 1)),
-            "nomeFornecedor": str(row.get("nomeFornecedor", "")),
-            "cnpjCpfFornecedor": str(row.get("cnpjCpfFornecedor", "") or "N/I"),
-            "ano": int(row.get("ano", 2026)),
-            "mes": int(row.get("mes", 1)),
-            "valorLiquido": round(float(row.get("valorLiquido", 0.0)), 2),
-            "mediaAceitavelCategoria": round(float(row.get("mediaAceitavelCategoria", 0.0)), 2),
-            "limiarCategoria": round(float(row.get("limiarCategoria", 0.0)), 2),
-            "excessoMensal": round(float(row.get("excessoMensal", 0.0)), 2),
-            "impacto5Anos": round(float(row.get("impacto5Anos", 0.0)), 2),
-            "classePredita": int(row.get("classePredita", 0)),
-            "probabilidadeAtipico": round(float(row.get("probabilidadeAtipico", 0.0)), 4),
-            "urlDocumento": str(row.get("urlDocumento", "") or ""),
-            "urlFoto": foto_url,
-        })
+    df_calc['regiao'] = df_calc['siglaUF'].map(MAPA_REGIAO_UF).fillna('Não identificada')
+    nomes = df_calc['nomeParlamentar'].str.replace(' (Dep. Federal)', '', regex=False).str.replace(' (Senador)', '', regex=False).str.strip()
+    web = df_calc.rename(columns={'idDeputado': 'idParlamentar', 'cargoPublico': 'cargo',
+                                  'nomeParlamentar': 'nomeExibicao'}).copy()
+    web['nomeParlamentar'] = nomes
+    web['urlFoto'] = web['idParlamentar'].astype(str).map(fotos_map).fillna(nomes.str.upper().map(fotos_map)).fillna('')
+    fields = ['idParlamentar', 'nomeParlamentar', 'nomeExibicao', 'cargo', 'siglaPartido',
+              'siglaUF', 'regiao', 'tipoDespesa', 'codTipoDespesa', 'nomeFornecedor',
+              'cnpjCpfFornecedor', 'ano', 'mes', 'valorLiquido', 'mediaAceitavelCategoria',
+              'limiarCategoria', 'excessoMensal', 'impacto5Anos', 'classePredita',
+              'probabilidadeAtipico', 'urlDocumento', 'urlFoto']
+    # Colunas e dicionários evitam repetir nomes de campos, partidos, categorias e URLs.
+    columns = {}
+    for field in fields:
+        values = web[field]
+        if values.dtype == object:
+            values = values.fillna('').astype(str)
+            codes, dictionary = pd.factorize(values, sort=False)
+            if len(dictionary) < len(values) // 2:
+                columns[field] = {'dictionary': dictionary.tolist(), 'values': codes.tolist()}
+            else:
+                columns[field] = {'values': values.tolist()}
+        else:
+            columns[field] = {'values': values.round(4 if field == 'probabilidadeAtipico' else 2).tolist()}
+    metrics['webRecords'] = len(web)
+    metrics['sampling'] = 'none'
+    metrics['totalSpent'] = round(float(web['valorLiquido'].sum()), 2)
 
     # Amostra da curva de aprendizado para a guia técnica
     step = max(1, len(nn.loss_history) // 100)
@@ -172,9 +151,18 @@ def export_web_dashboard_payload(
         for i in range(0, len(nn.loss_history), step)
     ]
 
+    obras_projetos = []
+    if os.path.exists(OBRAS_PROJETOS_CSV_PATH):
+        try:
+            df_ob = pd.read_csv(OBRAS_PROJETOS_CSV_PATH)
+            obras_projetos = works_payload(df_ob)
+        except Exception:
+            pass
+
     payload = {
         "metrics": metrics,
         "custosReferencia": CUSTOS_REFERENCIA_BR,
+        "obrasProjetos": obras_projetos,
         "modelParams": {
             "n_input": nn.n_input,
             "n_hidden": nn.n_hidden,
@@ -195,17 +183,48 @@ def export_web_dashboard_payload(
             "mapaUF": metadata["mapa_uf"],
         },
         "learningCurve": history_sampled,
-        "records": registros_web,
+        "recordCount": len(web),
+        "recordColumns": columns,
+        "dataNotes": {"coverage": "Todas as despesas positivas identificadas de 2025 e 2026; não inclui estornos negativos nem lideranças sem UF.", "costs": "Cenários comparativos estimados, não repasses contratados.", "senateParty": "N/I: o CSV CEAPS não publica partido na data da despesa.", "model": "Modelo treinado para reproduzir uma regra estatística; não identifica corrupção comprovada."},
     }
 
+    write_summary(df_calc, web_data_dir)
+
     json_path = os.path.join(web_data_dir, "dashboard_data.json")
-    with open(json_path, "w", encoding="utf-8") as f:
-        json.dump(payload, f, ensure_ascii=False)
+    with open(json_path + ".tmp", "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+    publish_file(json_path + ".tmp", json_path)
+    with open(json_path, "rb") as source, gzip.open(json_path + ".gz.tmp", "wb", compresslevel=6) as target:
+        shutil.copyfileobj(source, target)
+    publish_file(json_path + ".gz.tmp", json_path + ".gz")
 
     return json_path
 
 
+def balanced_training_indices(df, candidates, limit=5000, seed=42):
+    """Classes balanceadas; estratos UF/Casa/ano proporcionais, sem reposição."""
+    rng = np.random.default_rng(seed)
+    chosen = []
+    for label in [0, 1]:
+        pool = df.loc[candidates]
+        pool = pool[pool['target'].eq(label)]
+        count = min(limit // 2, len(pool))
+        groups = list(pool.groupby(['siglaUF', 'cargoPublico', 'ano'], sort=True))
+        # Primeiro garante uma observação de cada estrato existente.
+        base = [int(rng.choice(group.index)) for _, group in groups]
+        base = base[:count]
+        remainder = np.setdiff1d(pool.index.to_numpy(), base)
+        chosen.extend(base)
+        if count > len(base):
+            chosen.extend(rng.choice(remainder, count - len(base), replace=False).tolist())
+    rng.shuffle(chosen)
+    return np.asarray(chosen, dtype=int)
+
+
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--offline', action='store_true', help='Reutiliza os dumps locais, sem atualizar despesas')
+    args = parser.parse_args()
     print("=" * 78)
     print("  OLHOCIDADÃO — AUDITORIA INTELIGENTE DE GASTOS PARLAMENTARES (CEAP)")
     print("  Rede Neural MLP do Zero (NumPy) + Analisador de Impacto Social")
@@ -215,7 +234,7 @@ def main():
     # ETAPA 1: Coleta e Pré-Processamento dos Dados da Câmara e do Senado
     # -------------------------------------------------------------------------
     print("\n[ETAPA 1/4] Coletando e pré-processando dados de despesas parlamentares (CEAP/CEAPS)...")
-    X_raw, y, df_processed, metadata = load_and_preprocess_data(target_records=10000, seed=42)
+    X_raw, y, df_processed, metadata = load_and_preprocess_data(seed=42, refresh=not args.offline)
 
     total_amostras = X_raw.shape[0]
     total_normais = int(np.sum(y == 0))
@@ -231,12 +250,15 @@ def main():
     )
 
     # -------------------------------------------------------------------------
-    # ETAPA 2: Divisão Treino/Teste (80%/20%) e Normalização Z-Score em NumPy
+    # ETAPA 2: Treino balanceado limitado e teste independente
     # -------------------------------------------------------------------------
-    print("\n[ETAPA 2/4] Dividindo dataset em Treino (80%) e Teste (20%) via NumPy puro...")
-    X_train_raw, X_test_raw, y_train, y_test, train_idx, test_idx = train_test_split_numpy(
-        X_raw, y, test_ratio=0.20, seed=42
-    )
+    print("\n[ETAPA 2/4] Separando teste independente e treino balanceado de até 5.000 notas...")
+    rng = np.random.default_rng(42)
+    test_idx = rng.choice(total_amostras, min(2000, total_amostras // 5), replace=False)
+    candidates = np.setdiff1d(np.arange(total_amostras), test_idx)
+    train_idx = balanced_training_indices(df_processed, candidates)
+    X_train_raw, X_test_raw = X_raw[train_idx], X_raw[test_idx]
+    y_train, y_test = y[train_idx], y[test_idx]
 
     X_train_norm, mean_train, std_train = normalize_zscore(X_train_raw)
     X_test_norm, _, _ = normalize_zscore(X_test_raw, mean=mean_train, std=std_train)
@@ -288,11 +310,15 @@ def main():
     # -------------------------------------------------------------------------
     print("\n[ETAPA 4/4] Auditando casos classificados como Atípicos (Classe 1) e gerando parecer social...")
 
-    df_test_original = df_processed.iloc[test_idx].copy()
-    df_test_original["classePredita"] = y_test_pred
-    df_test_original["probabilidadeAtipico"] = y_test_prob
-
-    df_suspeitos = df_test_original[df_test_original["classePredita"] == 1].copy()
+    X_all_norm, _, _ = normalize_zscore(X_raw, mean_train, std_train)
+    all_preds, all_probs = nn.predict(X_all_norm)
+    df_processed['classePredita'] = all_preds
+    df_processed['probabilidadeAtipico'] = all_probs
+    df_processed['excessoMensal'] = np.where(all_preds == 1,
+        np.maximum(df_processed['valorLiquido'] - df_processed['mediaAceitavelCategoria'], 0), 0)
+    df_processed['impacto5Anos'] = df_processed['excessoMensal'] * 60
+    save_csv(df_processed, os.path.join('data', 'processed_dataset.csv'))
+    df_suspeitos = df_processed.loc[all_preds == 1].copy()
 
     relatorio_path = generate_social_impact_report(
         df_suspeitos=df_suspeitos,
@@ -302,7 +328,7 @@ def main():
 
     excesso_mensal = (
         df_suspeitos["valorLiquido"] - df_suspeitos["mediaAceitavelCategoria"]
-    ).clip(lower=df_suspeitos["valorLiquido"] * 0.30) if not df_suspeitos.empty else np.array([0.0])
+    ).clip(lower=0) if not df_suspeitos.empty else np.array([0.0])
     impacto_5_anos_total = float((excesso_mensal * 60.0).sum())
     merendas_equiv = int(impacto_5_anos_total / 1.50)
 
@@ -331,10 +357,10 @@ def main():
         X_all_raw=X_raw,
         metadata=metadata,
         metrics=metrics_summary,
-        max_web_records=3000,
+
     )
 
-    print(f"  -> Casos suspeitos auditados no conjunto de teste : {len(df_suspeitos)}")
+    print(f"  -> Casos atípicos sinalizados na base integral : {len(df_suspeitos)}")
     print(f"  -> Impacto acumulado projetado em 5 anos (60m)    : {format_brl(impacto_5_anos_total)}")
     print(f"  -> Equivalência direta em Educação (PNAE R$ 1,50) : {merendas_equiv:,} merendas escolares".replace(",", "."))
     print(f"  -> Payload Web (pnpm) exportado em                : {web_json_path}")
