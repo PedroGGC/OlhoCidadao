@@ -81,3 +81,7 @@ $RECYCLE.BIN/
 *.swp
 *.swo
 *~
+
+# Cache local da coleta nacional ObrasGov
+outputs/obrasgov_cache/
+outputs/*.log
