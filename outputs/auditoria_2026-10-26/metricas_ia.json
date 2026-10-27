@@ -1,0 +1,284 @@
+{
+  "published_metrics": {
+    "totalConsolidatedRaw": 325784,
+    "totalRecords": 325784,
+    "trainRecords": 5000,
+    "testRecords": 2000,
+    "lossInitial": 0.5812,
+    "lossFinal": 0.1476,
+    "trainAccuracy": 94.07,
+    "testAccuracy": 91.7,
+    "precision": 43.36,
+    "recall": 96.87,
+    "confusionMatrix": {
+      "vp": 124,
+      "vn": 1710,
+      "fp": 162,
+      "fn": 4
+    },
+    "suspiciousCount": 47758,
+    "monthlyExcessTotal": 176658034.69,
+    "impact5YearsTotal": 10599482081.13,
+    "webRecords": 325784,
+    "sampling": "none",
+    "totalSpent": 418329396.8
+  },
+  "holdout_current": {
+    "n": 2000,
+    "positives": 128,
+    "alerts": 286,
+    "tp": 124,
+    "fp": 162,
+    "tn": 1710,
+    "fn": 4,
+    "accuracy": 0.917,
+    "precision": 0.43356643356643354,
+    "recall": 0.96875,
+    "f1": 0.5990338164251208,
+    "brier": 0.06401566653965846,
+    "calibration_bins": [
+      {
+        "lower": 0.0,
+        "n": 1361,
+        "mean_score": 0.014660611417752519,
+        "positive_rate": 0.0
+      },
+      {
+        "lower": 0.1,
+        "n": 64,
+        "mean_score": 0.14948983117969586,
+        "positive_rate": 0.0
+      },
+      {
+        "lower": 0.2,
+        "n": 50,
+        "mean_score": 0.25385958090332483,
+        "positive_rate": 0.0
+      },
+      {
+        "lower": 0.3,
+        "n": 114,
+        "mean_score": 0.35527348028447897,
+        "positive_rate": 0.008771929824561403
+      },
+      {
+        "lower": 0.4,
+        "n": 125,
+        "mean_score": 0.45142813567608175,
+        "positive_rate": 0.024
+      },
+      {
+        "lower": 0.5,
+        "n": 68,
+        "mean_score": 0.5440479459487872,
+        "positive_rate": 0.029411764705882353
+      },
+      {
+        "lower": 0.6,
+        "n": 29,
+        "mean_score": 0.6470308626194484,
+        "positive_rate": 0.06896551724137931
+      },
+      {
+        "lower": 0.7,
+        "n": 35,
+        "mean_score": 0.7510568985013139,
+        "positive_rate": 0.14285714285714285
+      },
+      {
+        "lower": 0.8,
+        "n": 31,
+        "mean_score": 0.8502641445114878,
+        "positive_rate": 0.45161290322580644
+      },
+      {
+        "lower": 0.9,
+        "n": 123,
+        "mean_score": 0.9846436509223122,
+        "positive_rate": 0.8211382113821138
+      }
+    ],
+    "ece10": 0.1203293092117484
+  },
+  "holdout_always_normal": {
+    "n": 2000,
+    "positives": 128,
+    "alerts": 0,
+    "tp": 0,
+    "fp": 0,
+    "tn": 1872,
+    "fn": 128,
+    "accuracy": 0.936,
+    "precision": 0.0,
+    "recall": 0.0,
+    "f1": 0.0
+  },
+  "holdout_direct_label_rule": {
+    "n": 2000,
+    "positives": 128,
+    "alerts": 128,
+    "tp": 128,
+    "fp": 0,
+    "tn": 1872,
+    "fn": 0,
+    "accuracy": 1.0,
+    "precision": 1.0,
+    "recall": 1.0,
+    "f1": 1.0
+  },
+  "full_dataset": {
+    "n": 325784,
+    "positives": 20750,
+    "alerts": 47758,
+    "tp": 20441,
+    "fp": 27317,
+    "tn": 277717,
+    "fn": 309,
+    "accuracy": 0.915201483191317,
+    "precision": 0.42801206080656645,
+    "recall": 0.9851084337349397,
+    "f1": 0.5967478250715245
+  },
+  "thresholds_exploratory_not_validation": {
+    "0.5": {
+      "n": 2000,
+      "positives": 128,
+      "alerts": 286,
+      "tp": 124,
+      "fp": 162,
+      "tn": 1710,
+      "fn": 4,
+      "accuracy": 0.917,
+      "precision": 0.43356643356643354,
+      "recall": 0.96875,
+      "f1": 0.5990338164251208
+    },
+    "0.7": {
+      "n": 2000,
+      "positives": 128,
+      "alerts": 189,
+      "tp": 120,
+      "fp": 69,
+      "tn": 1803,
+      "fn": 8,
+      "accuracy": 0.9615,
+      "precision": 0.6349206349206349,
+      "recall": 0.9375,
+      "f1": 0.7570977917981072
+    },
+    "0.8": {
+      "n": 2000,
+      "positives": 128,
+      "alerts": 154,
+      "tp": 115,
+      "fp": 39,
+      "tn": 1833,
+      "fn": 13,
+      "accuracy": 0.974,
+      "precision": 0.7467532467532467,
+      "recall": 0.8984375,
+      "f1": 0.8156028368794326
+    },
+    "0.9": {
+      "n": 2000,
+      "positives": 128,
+      "alerts": 123,
+      "tp": 101,
+      "fp": 22,
+      "tn": 1850,
+      "fn": 27,
+      "accuracy": 0.9755,
+      "precision": 0.8211382113821138,
+      "recall": 0.7890625,
+      "f1": 0.8047808764940239
+    },
+    "0.95": {
+      "n": 2000,
+      "positives": 128,
+      "alerts": 107,
+      "tp": 94,
+      "fp": 13,
+      "tn": 1859,
+      "fn": 34,
+      "accuracy": 0.9765,
+      "precision": 0.8785046728971962,
+      "recall": 0.734375,
+      "f1": 0.8
+    }
+  },
+  "holdout_by_house": {
+    "DEPUTADO FEDERAL": {
+      "n": 1774,
+      "positives": 117,
+      "alerts": 259,
+      "tp": 114,
+      "fp": 145,
+      "tn": 1512,
+      "fn": 3,
+      "accuracy": 0.9165727170236753,
+      "precision": 0.44015444015444016,
+      "recall": 0.9743589743589743,
+      "f1": 0.6063829787234042
+    },
+    "SENADOR DA REPÚBLICA": {
+      "n": 226,
+      "positives": 11,
+      "alerts": 27,
+      "tp": 10,
+      "fp": 17,
+      "tn": 198,
+      "fn": 1,
+      "accuracy": 0.9203539823008849,
+      "precision": 0.37037037037037035,
+      "recall": 0.9090909090909091,
+      "f1": 0.5263157894736842
+    }
+  },
+  "holdout_by_year": {
+    "2025": {
+      "n": 1214,
+      "positives": 68,
+      "alerts": 163,
+      "tp": 66,
+      "fp": 97,
+      "tn": 1049,
+      "fn": 2,
+      "accuracy": 0.9184514003294892,
+      "precision": 0.4049079754601227,
+      "recall": 0.9705882352941176,
+      "f1": 0.5714285714285714
+    },
+    "2026": {
+      "n": 786,
+      "positives": 60,
+      "alerts": 123,
+      "tp": 58,
+      "fp": 65,
+      "tn": 661,
+      "fn": 2,
+      "accuracy": 0.9147582697201018,
+      "precision": 0.4715447154471545,
+      "recall": 0.9666666666666667,
+      "f1": 0.6338797814207651
+    }
+  },
+  "sensitivity_codUF": {
+    "holdout_records_changing_class_under_any_code": 289,
+    "mean_score_range": 0.0670517908398501,
+    "maximum_score_range": 0.5378208752649805
+  },
+  "sensitivity_codPartido": {
+    "holdout_records_changing_class_under_any_code": 357,
+    "mean_score_range": 0.1091688962226069,
+    "maximum_score_range": 0.8891874045132018
+  },
+  "gradient_check": {
+    "n": 16,
+    "numerical_gradient": 0.12507288987828602,
+    "applied_gradient": 1.0005831190523784,
+    "ratio": 8.000000000208601
+  },
+  "test_parliamentarians_overlapping_other_rows": 2000,
+  "label_prevalence": 0.06369250791935761,
+  "rule_targets_verified": true
+}
