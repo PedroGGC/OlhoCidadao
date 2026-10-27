@@ -1,102 +1,79 @@
-# OlhoCidadão — Auditoria Inteligente de Gastos Parlamentares (CEAP)
+# OlhoCidadão
 
-Sistema híbrido de **Transparência Pública Brasileira** que combina uma **Rede Neural Multilayer Perceptron (MLP) construída 100% do zero em NumPy** com um **Analisador de Impacto Social** (integrado à API do Google Gemini e com motor analítico offline integrado). O projeto roda **100% em CPU local**, sem necessidade de GPU dedicada ou frameworks pesados de Deep Learning.
+Consulta de despesas parlamentares e obras públicas brasileiras, com rede neural construída do zero em NumPy. A IA aprende atipicidade estatística; seus alertas não comprovam fraude. [Fontes, metodologia e resultados](docs/METODOLOGIA.md).
 
----
+## Começar
 
-## 1. Contexto Acadêmico & Diretrizes Oficiais da Atividade
-
-> **Disciplina:** Redes Neurais / Inteligência Artificial  
-> **Composição da Nota:** Atividade Prática do 2º Bimestre (composição de nota com a Prova Oficial)  
-> **Formato de Trabalho:** Individual ou em Duplas  
-> **Prazo de Entrega e Apresentação:** 30/10/2026
->
-> **Materiais de Apoio Fundamentais Indicados pelo Professor:**
->
-> - 📺 [Redes Neurais — Conceitos Básicos (Playlist)](https://www.youtube.com/watch?v=ebToEXQFCo4&list=PLQH6T1jnIb5J7vugBAauJsFU8Qgvuf-4X)
-> - 📺 [Rede neural do zero em Python — Referência do Projeto (Playlist)](https://www.youtube.com/watch?v=OGcOH9damt0&list=PLQH6T1jnIb5I1s7chxtL24ZuX4g-PA7uK)
-
-### 📋 Matriz de Conformidade com o Escopo da Atividade
-
-| Item do Escopo Oficial          | Diretriz Exigida pelo Professor                                                                                                                                                                   | Como o Projeto OlhoCidadão Cumpre                                                                                                                                                                                                                                                                                                                                                                                                                    | Arquivo de Referência                                           |      Status       |
-| :------------------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------- | :---------------: |
-| **1. Desenvolvimento Base**     | _"Desenvolver a estrutura de rede neural criada e explicada na playlist de referência 'Rede neural do zero em Python'."_                                                                          | Implementação da classe `NnModel` construída **100% em NumPy do zero**, sem scikit-learn, pytorch ou tensorflow. Contém pesos Xavier, `forward`, `loss` analítica por Entropia Cruzada, `backpropagation` por Regra da Cadeia e loop `fit` com exportação de curva de perda.                                                                                                                                                                         | [`src/nn_model.py`](src/nn_model.py)                            | **100% Conforme** |
-| **2. Escolha do Dataset**       | _"Escolher um banco de dados de qualquer área de interesse, com a condição obrigatória de que sejam dados de origem do Brasil."_                                                                  | Consumo de dados públicos oficiais brasileiros da **Câmara dos Deputados (CEAP)**, **Senado Federal (CEAPS)**, **IBGE** e **Tesouro Nacional/SICONFI**. Inclui 325.784 notas reais e treino balanceado de até 5.000 notas, com inferência na base integral.                                                                                                                                                                                            | [`src/data_fetcher.py`](src/data_fetcher.py) e [`data/`](data/) | **100% Conforme** |
-| **3. Customização & Aplicação** | _"Aplicar o banco de dados escolhido na rede neural desenvolvida. Vocês devem alterar a função de ativação e adequar a arquitetura da rede de acordo com a problemática dos dados selecionados."_ | • **Adequação da Arquitetura:** Entradas dinâmicas com valor logarítmico, contexto histórico da categoria e codificação one-hot: **28 entradas nesta execução**, sem partido e UF na decisão.<br>• **Alteração da Ativação:** Substituição da sigmoide clássica pela **Tangente Hiperbólica ($\tanh$)**, com derivada analítica exata $f'(a) = 1 - a^2$ no backpropagation, operando em harmonia com normalização Z-Score. | [`src/nn_model.py`](src/nn_model.py)                   | **100% Conforme** |
-
----
-
-## 2. Executar
+Requisitos para o portal: **Node.js 22.14+** e **pnpm 12.10.1**. Não precisa de Python, chave de IA ou Git LFS para consultar os dados publicados.
 
 ```sh
-pip install -r requirements.txt
-pnpm install
-python main.py --offline
+git clone --depth 1 https://github.com/PedroGGC/OlhoCidadao.git
+cd OlhoCidadao
+pnpm install --frozen-lockfile
 pnpm dev
 ```
 
-`--offline` reutiliza os dumps oficiais locais e não chama Gemini. `python main.py` atualiza as fontes e, se `GEMINI_API_KEY` estiver configurada, permite texto complementar via Gemini. A rede neural, a calibração e sua avaliação funcionam inteiramente em CPU, sem API de IA e sem revisão humana.
+A instalação prepara automaticamente o snapshot fixado em [data-manifest.json](data-manifest.json): baixa os pacotes comprimidos, confere SHA-256 e restaura os mesmos nomes de CSV em `data/`, além do dashboard e relatórios. A base contém **325.784 notas**, sem amostragem no portal.
 
-Para visualizar os artefatos já gerados, basta `pnpm dev`. `pnpm start` atualiza/treina antes de abrir o Vite; `pnpm build` gera `dist/`.
+Na primeira instalação são cerca de **87 MB de download**. Com dados íntegros, as próximas preparações usam o cache e não acessam a rede para baixar os dados. O treinamento não é executado ao iniciar a aplicação.
 
-## 3. Modelo autônomo e avaliação
+## Atualizar / Sync
 
-A implementação mantém `NnModel` feita do zero em NumPy: inicialização Xavier, `forward`, Softmax, entropia cruzada, derivada analítica de `tanh`, `backpropagation` e `fit`. O gradiente corresponde à perda média, com opção Adam implementada em NumPy, regularização L2 e parada antecipada com recuperação dos melhores pesos.
+Após a instalação inicial, os hooks preparam dependências e dados automaticamente depois de pull, rebase ou troca de branch. Para atualizar explicitamente com um comando:
 
-O modelo recebe o logaritmo do valor, esse valor padronizado pelo histórico da categoria e a categoria em one-hot, incluindo uma posição para categoria desconhecida. Não recebe o limiar, o alvo, partido, UF ou identidade do parlamentar. Nesta base: **28 → 16 tanh → 2 Softmax**. As duas primeiras entradas são normalizadas com parâmetros do treino; one-hot permanece binário.
+```sh
+pnpm sync
+```
 
-O gabarito automático continua sendo `valor > média da categoria + 1,2 × desvio`, agora calculado **somente em 2025** e congelado antes da avaliação. Não existe ajuste de percentil para forçar quantidade de alertas. As métricas medem aprendizado desse critério de atipicidade; não são métricas de detecção de corrupção.
+O comando aplica `git pull --ff-only` e prepara a versão de dados exigida pelo código. Se houver conflito, falta de rede ou checksum incorreto, informa o problema; não usa silenciosamente outro snapshot. Downloads e extração são validados antes da substituição dos arquivos ativos. `pnpm dev`, `pnpm build` e `pnpm preview` também conferem os dados antes de executar.
 
-| Papel | Período | Registros disponíveis | Uso |
-| --- | --- | ---: | --- |
-| Referências e treino | 2025 | 193.477 | Estatísticas históricas; fit em 5.000 notas, metade de cada classe |
-| Validação | jan–mar/2026 | 44.729 | Amostra natural de 5.000 para parada e escolha entre 16 e 32 neurônios |
-| Calibração | abr–mai/2026 | 35.417 | Ajuste sigmoidal de scores na prevalência natural |
-| Limiar | jun/2026 | 16.239 | Maximiza F1 com recall mínimo de 90% |
-| Teste final | jul–out/2026 | 35.922 | Avaliação após congelar arquitetura, pesos, calibração e limiar |
+Git não instala hooks ao clonar um repositório: execute `pnpm install` uma vez. Se você já usa hooks personalizados, eles são preservados; nesse caso, use `pnpm sync`. Se seu cliente ignorar hooks ou você usar `--ignore-scripts`, execute `pnpm setup`; a inicialização continua protegida pela conferência automática.
 
-Partições usam ano/mês de competência dos arquivos oficiais. Todos os registros de teste são posteriores aos de ajuste. A avaliação não é um teste de parlamentares inéditos: a mesma pessoa pode aparecer em períodos diferentes.
+| Comando | Função |
+| --- | --- |
+| `pnpm dev` / `pnpm start` | Prepara os dados publicados e inicia o portal |
+| `pnpm sync` | Atualiza código, dependências e dados |
+| `pnpm setup` | Repara os arquivos necessários sem atualizar o código |
+| `pnpm data:verify` | Recalcula SHA-256 e repara divergências |
+| `pnpm test` | Executa testes JavaScript, incluindo integridade e sincronização |
+| `pnpm build` | Prepara dados e gera o site em `dist/` |
+| `pnpm preview` | Serve o build local |
 
-Comparação com a arquitetura anterior **retreinada nas mesmas 5.000 notas**, no mesmo teste temporal:
+## Pesquisar / treinar a IA
 
-| Métrica | Arquitetura anterior | Modelo refinado |
-| --- | ---: | ---: |
-| Acurácia | 96,38% | 99,88% |
-| Precisão dos alertas | 76,45% | 98,63% |
-| Recall | 72,43% | 99,69% |
-| F1 | 74,38% | 99,16% |
-| Falsos positivos | 582 | 36 |
-| Falsos negativos | 719 | 8 |
-| Brier (menor é melhor) | 0,02649 | 0,00124 |
+Para treinamento e validação científica, instale **Python 3.12+** e as dependências:
 
-Esses resultados não devem ser comparados diretamente às métricas do antigo teste aleatório de 2.000 notas. O relatório completo, com métricas por UF, Casa e categoria, intervalos Wilson, bins de calibração e teste artificial de sensibilidade, está em [outputs/model_evaluation.json](outputs/model_evaluation.json). Consulte [MODEL_CARD.md](MODEL_CARD.md) para limites e protocolo.
+```sh
+pip install -r requirements.txt
+pnpm train
+pnpm dev:local
+```
 
-## 4. Dados e dashboard
+O treino padrão usa os dados publicados em modo offline, com fit em até 5.000 notas e inferência na base integral. Para atualizar as fontes oficiais use `python main.py` após `pnpm setup`. A geração local é vista com `pnpm dev:local`; os comandos normais restauram o snapshot publicado, garantindo o mesmo resultado entre colaboradores.
 
-Os nomes dos CSVs em `data/` são preservados. Os dumps da Câmara e do Senado contêm 286.252 e 39.532 despesas positivas, respectivamente; `raw_despesas_camara.csv` e `processed_dataset.csv` contêm os **325.784 registros integrais**. O total observado é **R$ 418.329.396,80**, nas 27 UFs. O treino amostra dados; o dashboard recebe inferência em todos os registros.
-
-O JSON usa colunas, dicionários e gzip; o navegador filtra a base integral em Web Worker. As obras municipais vêm do cadastro ObrasGov, com origem de localização e divergências visíveis, e referências estimadas aparecem identificadas. Detalhes, fontes e custos comparativos: [DATA_PIPELINE.md](DATA_PIPELINE.md).
-
-O simulador na Ficha Técnica executa os mesmos pesos, transformação, calibração e limiar do Python. A ficha mostra o protocolo temporal e a comparação de desempenho. O resumo do dashboard é calculado a partir dos dados filtrados; Gemini é opcional apenas no relatório escrito.
-
-`excessoMensal` é o nome legado da diferença positiva entre cada nota sinalizada e a média histórica de referência; não significa despesa recorrente. `impacto5Anos` multiplica essa diferença por 60 como cenário hipotético, sem demonstrar perda ou economia pública realizável.
-
-## 5. Estrutura e verificação
-
-- [src/nn_model.py](src/nn_model.py): MLP, gradientes, Adam e curva de aprendizado.
-- [src/model_evaluation.py](src/model_evaluation.py): partições temporais, referências, entradas, calibração, limiar e métricas.
-- [src/model_training.py](src/model_training.py): treino e escolha automática sem consultar o teste final.
-- [src/model_export.py](src/model_export.py) e [web/model.js](web/model.js): contrato dos pesos e inferência compatível no navegador.
-- [outputs/loss_curve.png](outputs/loss_curve.png): curva de treino/validação; teste final fora do fit.
-- [outputs/model_parity.json](outputs/model_parity.json): casos gerados por NumPy para verificar a inferência JavaScript.
-- [outputs/relatorio_auditoria.md](outputs/relatorio_auditoria.md): análise descritiva e comparações de custo.
+Validação completa:
 
 ```sh
 python -m unittest discover -s tests
+pnpm test
 python scripts/validate_model.py
-node --test tests/*.test.mjs
-python scripts/validate_dataset.py
+python scripts/validate_dataset.py --check
+pnpm data:verify
 pnpm build
 ```
 
-Os testes verificam gradientes por diferenças finitas, ausência de influência de valores futuros nas referências, separação temporal, recuperação dos melhores pesos, calibração, limiares e paridade NumPy/JavaScript. Os validadores conciliam todas as inferências com CSV/payload e os valores monetários com as fontes oficiais.
+Relatórios e casos de paridade são restaurados em `outputs/`. Gemini é opcional apenas para o texto complementar; nenhuma revisão humana participa da classificação ou avaliação.
+
+## Publicar novos dados (mantenedor)
+
+Com uma geração local consistente e GitHub CLI autenticado:
+
+```sh
+pnpm data:publish
+```
+
+O comando valida as inferências e os valores monetários, cria pacotes determinísticos, publica uma Release identificada pelo conteúdo, verifica os digests SHA-256 retornados pelo GitHub e só então atualiza o manifesto. Depois, faça commit e push do novo manifesto junto de qualquer alteração de código necessária. Assets de uma versão existente nunca são sobrescritos. Para apenas preparar os pacotes, use `python scripts/publish_snapshot.py`.
+
+Os dados grandes e relatórios gerados ficam fora do Git. O JSON descompactado é reconstruído a partir do gzip, sem um segundo upload. O perfil padrão é completo; em ambientes que precisam somente do portal, `OLHO_DATA_PROFILE=web` baixa cerca de 28 MB. A versão é fixada pelo manifesto, nunca por uma Release “latest” mutável.
+
+A limpeza preserva o histórico antigo do repositório. O clone com `--depth 1` evita baixar esse histórico; os próximos pushes contêm código e manifesto, sem reenviar CSVs ou JSONs completos.

@@ -1,4 +1,4 @@
-# Modelo autônomo de atipicidade — protocolo 2
+# Dados, metodologia e avaliação da IA
 
 Implementado em 26/10/2026. A coleta usada nesta execução é de 22/10/2026. Todo o treino, seleção, calibração, classificação e avaliação são automáticos, sem revisão humana. A MLP e o Adam são implementados do zero em NumPy, sem frameworks de aprendizagem.
 
@@ -47,7 +47,7 @@ A redução de falsos positivos foi de 93,81%. A regra de sempre prever normal t
 
 O teste artificial aumentou 2.000 notas inicialmente normais para duas vezes o limiar histórico da respectiva categoria: 100% foram detectadas. Esse teste avalia sensibilidade a aumento de valor; seus exemplos não são notas reais de fraude e não entram no resultado principal.
 
-Relatório reproduzível com métricas por UF, Casa e categoria, contagens e faixas de calibração: [outputs/model_evaluation.json](outputs/model_evaluation.json). Nenhum resultado do teste foi usado para retreinar ou ajustar o modelo após sua avaliação.
+Relatório reproduzível com métricas por UF, Casa e categoria, contagens e faixas de calibração: `outputs/model_evaluation.json` (restaurado pelo snapshot). Nenhum resultado do teste foi usado para retreinar ou ajustar o modelo após sua avaliação.
 
 ## Limites da avaliação automática
 
@@ -60,14 +60,49 @@ O limite histórico de 2025 permanece congelado para esta experiência. Usar os 
 ## Reproduzir e conferir
 
 ```sh
-python main.py --offline
+pnpm train
 python -m unittest discover -s tests
 python scripts/validate_model.py
-node --test tests/*.test.mjs
-python scripts/validate_dataset.py
+pnpm test
+python scripts/validate_dataset.py --check
 pnpm build
 ```
 
 `validate_model.py` reconcilia todas as 325.784 inferências e as métricas do teste com os pesos exportados. Os testes JavaScript comparam o mesmo contrato em notas, extremos e valores próximos à fronteira, com tolerância de 1e-10. Os nomes dos CSVs permanecem iguais. A base integral continua disponível no dashboard; apenas o fit é limitado a 5.000 notas.
 
 Referências metodológicas: [separação temporal](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html) e [calibração de probabilidades](https://scikit-learn.org/stable/modules/calibration.html). As implementações deste projeto usam NumPy, não scikit-learn.
+
+
+## Fontes e cobertura dos dados
+
+A coleta de despesas utilizada neste snapshot é de 22/10/2026. Inclui 286.252 lançamentos da Câmara e 39.532 do Senado: **325.784 despesas positivas**, **R$ 418.329.396,80** e 27 UFs. O ano de 2026 é parcial. Esses valores não são o saldo líquido após estornos; não há multiplicação ou reponderação de notas.
+
+- Câmara: dumps oficiais [2025](https://www.camara.leg.br/cotas/Ano-2025.csv.zip) e [2026](https://www.camara.leg.br/cotas/Ano-2026.csv.zip), abertos em memória, UTF-8 e separador `;`.
+- Senado: consolidados CEAPS [2025](https://www.senado.leg.br/transparencia/LAI/verba/despesa_ceaps_2025.csv) e [2026](https://www.senado.leg.br/transparencia/LAI/verba/despesa_ceaps_2026.csv), Latin-1 e preâmbulo de atualização ignorado.
+- UF dos senadores: [cadastro da 57ª legislatura](https://legis.senado.leg.br/dadosabertos/senador/lista/legislatura/57), incluindo suplentes. O período inclui 90 pessoas nas 81 cadeiras. Não se atribui DF a nomes desconhecidos nem se deduz partido histórico pelo cadastro atual; o CSV CEAPS não fornece esse partido.
+- Entram valores positivos identificados com UF válida. Lideranças da Câmara sem UF e estornos negativos ficam fora. Um documento pode ter lançamentos distintos, portanto o número da nota isolado não é usado para eliminar registros.
+- CNPJ/CPF e número documental são texto. Datas inválidas publicadas são preservadas; a competência oficial de ano/mês determina as partições.
+
+Maranhão: 3.784 notas/R$ 9.679.640,60 em 2025 e 2.153 notas/R$ 5.651.857,01 em 2026. O relatório `outputs/data_quality_report.json`, fornecido pelo snapshot, concilia valores em centavos e hashes das fontes, CSVs e payload.
+
+## Obras e municípios
+
+A [API ObrasGov](https://api-publica.obrasgov.gestao.gov.br/obras) fornece projetos e geometrias, cruzados por `id_projeto_investimento`. O cadastro de 22/10/2026 contém 154.737 projetos com UF válida, 154.306 com município identificado e 5.569 códigos municipais. Há 14.716 divergências sinalizadas entre a geometria e a menção explícita a município/UF no nome oficial.
+
+Uma obra pode abranger várias cidades, mas seu valor não é multiplicado. Município ausente não é inventado. O filtro municipal seleciona obras, não determina o município beneficiário de uma nota parlamentar. Ano de cadastro e situação da obra são independentes da competência da despesa. Investimento previsto não é repasse ou pagamento realizado. Valores simbólicos até R$ 1.000 continuam visíveis, mas não entram na comparação orçamentária.
+
+`python scripts/update_public_works.py --refresh` atualiza o cadastro preservando as inferências. Para visualizar uma geração de pesquisa use `pnpm dev:local`; para distribuí-la, publique um novo snapshot com `pnpm data:publish`.
+
+## Custos comparativos e limitações financeiras
+
+As referências ficam centralizadas em `src/public_costs.py`: UBS R$ 250 mil, climatização escolar R$ 130 mil, ambulância R$ 280 mil, pavimentação R$ 450 mil, aluno/mês R$ 480, consulta especializada R$ 120 e cesta assistencial/diária operacional R$ 350.
+
+São cenários aproximados, não contratos ou tarifas nacionais uniformes. Referências: [FUNDEB/FNDE](https://www.gov.br/fnde/pt-br/acesso-a-informacao/acoes-e-programas/financiamento/fundeb/2025), [credenciamento CISCOPAR](https://portal.ciscopar.com.br/credenciamento/tabelas?tp_tabela=3), [ambulâncias de Curitiba a R$ 289 mil por veículo](https://www.curitiba.pr.gov.br/noticias/prefeito-eduardo-pimentel-entrega-20-ambulancias-para-renovacao-da-frota-do-samu/78124) e [pavimentação em São Cristóvão](https://www.saocristovao.se.gov.br/noticia/prefeitura-de-sao-cristovao-inaugura-pavimentacao-de-tres-ruas-no-povoado-tinhare). A cesta assistencial não é a cesta nacional DIEESE e não houve importação de contratos do Transferegov.
+
+`excessoMensal` é o nome legado da diferença positiva entre uma nota sinalizada e sua referência histórica; não é gasto mensal recorrente. `impacto5Anos` repete esse excedente por 60 meses como hipótese comparativa, sem demonstrar prejuízo ou economia realizável.
+
+## Contexto acadêmico
+
+Atividade prática do 2º bimestre de Redes Neurais/IA, individual ou em dupla, com apresentação prevista para 30/10/2026. Os requisitos são rede do zero, dados brasileiros e adaptação de arquitetura/ativação. O projeto mantém álgebra NumPy, Softmax, entropia cruzada, `forward`, `loss`, `backpropagation` e `fit`, com ativação `tanh` e sua derivada analítica.
+
+Materiais indicados: [conceitos básicos](https://www.youtube.com/watch?v=ebToEXQFCo4&list=PLQH6T1jnIb5J7vugBAauJsFU8Qgvuf-4X) e [rede neural do zero em Python](https://www.youtube.com/watch?v=OGcOH9damt0&list=PLQH6T1jnIb5I1s7chxtL24ZuX4g-PA7uK).

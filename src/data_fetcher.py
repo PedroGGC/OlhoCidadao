@@ -8,13 +8,9 @@ import pandas as pd
 from typing import Tuple, Dict, Any
 
 API_CAMARA_URL = "https://dadosabertos.camara.leg.br/api/v2"
-CAMARA_BULK_ZIP_2026 = "https://www.camara.leg.br/cotas/Ano-2026.csv.zip"
-CAMARA_BULK_ZIP_2025 = "https://www.camara.leg.br/cotas/Ano-2025.csv.zip"
 CAMARA_HISTORICO_DEPUTADOS_CSV = "https://dadosabertos.camara.leg.br/arquivos/deputados/csv/deputados.csv"
 
 API_SENADO_SENADORES_URL = "https://legis.senado.leg.br/dadosabertos/senador/lista/atual"
-API_SENADO_CEAPS_2026 = "https://adm.senado.gov.br/adm-dadosabertos/api/v1/senadores/despesas_ceaps/2026"
-API_SENADO_CEAPS_2025 = "https://adm.senado.gov.br/adm-dadosabertos/api/v1/senadores/despesas_ceaps/2025"
 
 API_TESOURO_ENTES_URL = "https://apidatalake.tesouro.gov.br/ords/siconfi/tt/entes"
 API_IBGE_UF_URL = "https://servicodados.ibge.gov.br/api/v1/localidades/estados"
