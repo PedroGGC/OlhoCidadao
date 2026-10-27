@@ -85,3 +85,9 @@ $RECYCLE.BIN/
 # Cache local da coleta nacional ObrasGov
 outputs/obrasgov_cache/
 outputs/*.log
+
+# Dados e relatórios são snapshots verificados em Releases, não blobs do Git.
+/data/
+/public/data/
+/outputs/
+/.cache/

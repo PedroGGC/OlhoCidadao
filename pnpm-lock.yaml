@@ -167,7 +167,7 @@ importers:
   .:
     devDependencies:
       vite:
-        specifier: ^6.2.0
+        specifier: 6.4.4
         version: 6.4.4
 
 packages:

@@ -1,0 +1,174 @@
+{
+  "schemaVersion": 1,
+  "snapshot": "data-47db2cf5cb3f1cb9",
+  "createdAtUTC": "2026-10-27T17:59:39.633134+00:00",
+  "sourceCommit": "45d06f58fd45a5662952503caa7525d3b30d3430",
+  "records": 325784,
+  "files": [
+    {
+      "path": "public/data/dashboard_data.json.gz",
+      "profile": "web",
+      "bytes": 27472048,
+      "sha256": "4d62c406146db383739c13d6bb5f9fc9cd76e9f167c54b100d7b109914a906df"
+    },
+    {
+      "path": "public/data/resumo_geral.json",
+      "profile": "web",
+      "bytes": 9531,
+      "sha256": "6cc3dd8491e119044b5a2d8cbe2db487f29374f26e34e03d74b360e1776ec71d"
+    },
+    {
+      "path": "public/data/loss_curve.png",
+      "profile": "web",
+      "bytes": 93457,
+      "sha256": "1d560e9e33cba940165b97ef684502c7c7e74a0a1d565b09e89225c62d455048"
+    },
+    {
+      "path": "outputs/model_evaluation.json",
+      "profile": "web",
+      "bytes": 91880,
+      "sha256": "ab56114cb03a1252824ed65f28ce9ee4f8659046f9dd37ba44835f8e7e7f3377"
+    },
+    {
+      "path": "outputs/model_parity.json",
+      "profile": "web",
+      "bytes": 51253,
+      "sha256": "5fdd5f9497f331e61c496b2ec591740198863e8942c6f1d22587101cc8c53bb3"
+    },
+    {
+      "path": "outputs/data_quality_report.json",
+      "profile": "web",
+      "bytes": 7511,
+      "sha256": "f22465e5f69c9830e62026964a314704f64eae534795bc5a170ccda2570aa021"
+    },
+    {
+      "path": "outputs/obrasgov_quality_report.json",
+      "profile": "web",
+      "bytes": 297,
+      "sha256": "a45a0c47affc506ddaab31fd257d3d1ee94f7715e256398bc286ff59fc5a26fd"
+    },
+    {
+      "path": "outputs/relatorio_auditoria.md",
+      "profile": "web",
+      "bytes": 16423,
+      "sha256": "71ae39320ef509843d1aed87dbf44211e67eeaf87d526183f7753e0148984508"
+    },
+    {
+      "path": "data/cota_parlamentar_camara_completa.csv",
+      "profile": "research",
+      "bytes": 69521732,
+      "sha256": "cc85ba57ad305735dfb22f220624be57d4267464203dc4dde392dda4472136d5"
+    },
+    {
+      "path": "data/deputados_federais_camara.csv",
+      "profile": "research",
+      "bytes": 125191,
+      "sha256": "de5095b98f7c17c30bd90d50251145e48a85967b0affd6818af13edef7b63d91"
+    },
+    {
+      "path": "data/deputados_historico_completo_camara.csv",
+      "profile": "research",
+      "bytes": 1372167,
+      "sha256": "27a2012ef41422501da2adfa49886d49b0d50aeafd66e9b4cc1f39bac2de8fd6"
+    },
+    {
+      "path": "data/despesas_senadores_ceaps_completo.csv",
+      "profile": "research",
+      "bytes": 9676163,
+      "sha256": "200e330f959734cd761fc8e4eaf83c341998edb703069b8a02d349fad29916a6"
+    },
+    {
+      "path": "data/estados_ibge_oficial.csv",
+      "profile": "research",
+      "bytes": 2518,
+      "sha256": "69b8248ef7fab16582d38c67d319dfe494318af7e85bbf589f7f4980e989490c"
+    },
+    {
+      "path": "data/indicadores_custos_publicos_br.csv",
+      "profile": "research",
+      "bytes": 2461,
+      "sha256": "2288d5bad92cd40c3d71b24a3c760b59ff8c1945303359c39de81b16f2447df8"
+    },
+    {
+      "path": "data/obras_projetos_publicos_br.csv",
+      "profile": "research",
+      "bytes": 92389865,
+      "sha256": "d6eadc6974f978a16fae3d9f0d885dc0a8d5e6dbb761de620a1bfae0373640f2"
+    },
+    {
+      "path": "data/partidos_politicos_camara.csv",
+      "profile": "research",
+      "bytes": 2015,
+      "sha256": "bc2b52e35f7dbf58acb62731ae0eb809ba4c7c390f113f4ba2dab4c6a566854f"
+    },
+    {
+      "path": "data/prefeituras_municipios_tesouro_ibge.csv",
+      "profile": "research",
+      "bytes": 334332,
+      "sha256": "0722e8176fbc183fc7394f38667493250c5487a580e22e652a7c807887470018"
+    },
+    {
+      "path": "data/processed_dataset.csv",
+      "profile": "research",
+      "bytes": 125782637,
+      "sha256": "25268260fb4626d7ecfe60932e1f9e52c375f963380c98f9b8fd90ce3ef1af7b"
+    },
+    {
+      "path": "data/raw_despesas_camara.csv",
+      "profile": "research",
+      "bytes": 99388676,
+      "sha256": "4bb70263170824ef8ab56771f502167a02cdbc8acd94436e52cac8c4e9384f4f"
+    },
+    {
+      "path": "data/senadores_federais_completo.csv",
+      "profile": "research",
+      "bytes": 18621,
+      "sha256": "0b20b9e32e8ab67d257805ad10b6fcb2df1c015e1ba11df348e88bd1788140bd"
+    },
+    {
+      "path": "public/data/dashboard_data.json",
+      "profile": "web",
+      "bytes": 212419453,
+      "sha256": "2ccb3229787ab8ff50827a119fbf1910cb6098de30e76c14c8301737e463cbf8",
+      "gunzipFrom": "public/data/dashboard_data.json.gz"
+    }
+  ],
+  "archives": [
+    {
+      "profile": "web",
+      "files": [
+        "public/data/dashboard_data.json.gz",
+        "public/data/resumo_geral.json",
+        "public/data/loss_curve.png",
+        "outputs/model_evaluation.json",
+        "outputs/model_parity.json",
+        "outputs/data_quality_report.json",
+        "outputs/obrasgov_quality_report.json",
+        "outputs/relatorio_auditoria.md"
+      ],
+      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-47db2cf5cb3f1cb9/web.tar.gz",
+      "bytes": 27589572,
+      "sha256": "6b5ea9c4d749c5790472b2837e35b979a1c504dffb4c6b87e4c55195d5bc2f75"
+    },
+    {
+      "profile": "research",
+      "files": [
+        "data/cota_parlamentar_camara_completa.csv",
+        "data/deputados_federais_camara.csv",
+        "data/deputados_historico_completo_camara.csv",
+        "data/despesas_senadores_ceaps_completo.csv",
+        "data/estados_ibge_oficial.csv",
+        "data/indicadores_custos_publicos_br.csv",
+        "data/obras_projetos_publicos_br.csv",
+        "data/partidos_politicos_camara.csv",
+        "data/prefeituras_municipios_tesouro_ibge.csv",
+        "data/processed_dataset.csv",
+        "data/raw_despesas_camara.csv",
+        "data/senadores_federais_completo.csv"
+      ],
+      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-47db2cf5cb3f1cb9/research.tar.gz",
+      "bytes": 59391025,
+      "sha256": "bd35852f9152754aa5de1aea333173400db40ce1819b73ebb385975e158ab10c"
+    }
+  ]
+}

@@ -1383,7 +1383,7 @@ async function init() {
     state.data = await loadDashboardData();
   } catch (err) {
     setBusy(false);
-    $('ai-insight-body').innerHTML = `<p>Não foi possível carregar os dados (${esc(err.message)}). Rode <code>pnpm run train</code> para gerar <code>public/data/dashboard_data.json</code>.</p>`;
+    $('ai-insight-body').innerHTML = `<p>Não foi possível carregar os dados (${esc(err.message)}). Execute <code>pnpm setup</code> para verificar e restaurar os arquivos publicados.</p>`;
     return;
   }
 
