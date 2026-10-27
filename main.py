@@ -1,4 +1,7 @@
 import os
+# Evita que BLAS abra dezenas de threads para matrizes pequenas do treino em CPU.
+for _variable in ('OPENBLAS_NUM_THREADS', 'OMP_NUM_THREADS', 'MKL_NUM_THREADS'):
+    os.environ.setdefault(_variable, '2')
 import sys
 import json
 import shutil
@@ -13,12 +16,13 @@ if hasattr(sys.stdout, "reconfigure"):
 
 from src.data_fetcher import (
     load_and_preprocess_data,
-    normalize_zscore,
     DEPUTADOS_CSV_PATH,
     SENADORES_CSV_PATH,
     OBRAS_PROJETOS_CSV_PATH,
 )
 from src.nn_model import NnModel
+from src.model_training import train_and_evaluate
+from src.model_export import model_parameters, export_parity_cases
 from src.bulk_data import save_csv, publish_file
 from src.public_works import works_payload
 from src.summary_export import write_summary
@@ -32,36 +36,6 @@ MAPA_REGIAO_UF = {
     "ES": "Sudeste", "MG": "Sudeste", "RJ": "Sudeste", "SP": "Sudeste",
     "PR": "Sul", "RS": "Sul", "SC": "Sul",
 }
-
-
-def train_test_split_numpy(
-    X: np.ndarray,
-    y: np.ndarray,
-    test_ratio: float = 0.20,
-    seed: int = 42,
-):
-    """
-    Divide os dados em conjuntos de treino (80%) e teste (20%) utilizando
-    exclusivamente operações vetoriais do NumPy (sem scikit-learn).
-    Retorna também os índices para recuperar os metadados originais na etapa de auditoria.
-    """
-    rng = np.random.default_rng(seed)
-    n_samples = X.shape[0]
-    indices = np.arange(n_samples)
-    rng.shuffle(indices)
-
-    split_idx = int(n_samples * (1.0 - test_ratio))
-    train_idx = indices[:split_idx]
-    test_idx = indices[split_idx:]
-
-    return (
-        X[train_idx],
-        X[test_idx],
-        y[train_idx],
-        y[test_idx],
-        train_idx,
-        test_idx,
-    )
 
 
 def _load_fotos_parlamentares() -> dict:
@@ -91,10 +65,8 @@ def export_web_dashboard_payload(
     mean_train: np.ndarray,
     std_train: np.ndarray,
     df_all: pd.DataFrame,
-    X_all_raw: np.ndarray,
     metadata: dict,
     metrics: dict,
-    max_web_records: int = None,
 ) -> str:
     """
     Exporta os dados auditados (Deputados Federais e Senadores), séries mensais/anuais,
@@ -154,7 +126,7 @@ def export_web_dashboard_payload(
     obras_projetos = []
     if os.path.exists(OBRAS_PROJETOS_CSV_PATH):
         try:
-            df_ob = pd.read_csv(OBRAS_PROJETOS_CSV_PATH)
+            df_ob = pd.read_csv(OBRAS_PROJETOS_CSV_PATH, low_memory=False)
             obras_projetos = works_payload(df_ob)
         except Exception:
             pass
@@ -163,19 +135,7 @@ def export_web_dashboard_payload(
         "metrics": metrics,
         "custosReferencia": CUSTOS_REFERENCIA_BR,
         "obrasProjetos": obras_projetos,
-        "modelParams": {
-            "n_input": nn.n_input,
-            "n_hidden": nn.n_hidden,
-            "n_output": nn.n_output,
-            "lr": nn.lr,
-            "activation": nn.activation,
-            "mean": mean_train.tolist(),
-            "std": std_train.tolist(),
-            "W1": nn.W1.tolist(),
-            "b1": nn.b1[0].tolist(),
-            "W2": nn.W2.tolist(),
-            "b2": nn.b2[0].tolist(),
-        },
+        "modelParams": model_parameters(nn, mean_train, std_train, metadata.get('feature_transform')),
         "mappings": {
             "categorias": metadata["stats_categoria"],
             "mapaCategoria": metadata["mapa_categoria"],
@@ -185,9 +145,10 @@ def export_web_dashboard_payload(
         "learningCurve": history_sampled,
         "recordCount": len(web),
         "recordColumns": columns,
-        "dataNotes": {"coverage": "Todas as despesas positivas identificadas de 2025 e 2026; não inclui estornos negativos nem lideranças sem UF.", "costs": "Cenários comparativos estimados, não repasses contratados.", "senateParty": "N/I: o CSV CEAPS não publica partido na data da despesa.", "model": "Modelo treinado para reproduzir uma regra estatística; não identifica corrupção comprovada."},
+        "dataNotes": {"coverage": "Todas as despesas positivas identificadas de 2025 e 2026; não inclui estornos negativos nem lideranças sem UF.", "costs": "Cenários comparativos estimados, não repasses contratados.", "senateParty": "N/I: o CSV CEAPS não publica partido na data da despesa.", "model": "MLP com referências de 2025, calibração e teste temporais automáticos; mede atipicidade estatística, não corrupção comprovada."},
     }
 
+    export_parity_cases(nn, payload["modelParams"], df_calc)
     write_summary(df_calc, web_data_dir)
 
     json_path = os.path.join(web_data_dir, "dashboard_data.json")
@@ -202,14 +163,17 @@ def export_web_dashboard_payload(
 
 
 def balanced_training_indices(df, candidates, limit=5000, seed=42):
-    """Classes balanceadas; estratos UF/Casa/ano proporcionais, sem reposição."""
+    """Classes balanceadas e cobertura de UF/Casa/ano/categoria, sem reposição."""
     rng = np.random.default_rng(seed)
     chosen = []
     for label in [0, 1]:
         pool = df.loc[candidates]
         pool = pool[pool['target'].eq(label)]
         count = min(limit // 2, len(pool))
-        groups = list(pool.groupby(['siglaUF', 'cargoPublico', 'ano'], sort=True))
+        strata = ['siglaUF', 'cargoPublico', 'ano']
+        if 'codTipoDespesa' in pool:
+            strata.append('codTipoDespesa')
+        groups = list(pool.groupby(strata, sort=True))
         # Primeiro garante uma observação de cada estrato existente.
         base = [int(rng.choice(group.index)) for _, group in groups]
         base = base[:count]
@@ -241,76 +205,35 @@ def main():
     total_atipicos = int(np.sum(y == 1))
 
     print(f"  -> Total de registros processados : {total_amostras}")
-    print(f"  -> Dimensão da matriz X           : {X_raw.shape} (5 features numéricas)")
-    print(f"  -> Features utilizadas            : {metadata['feature_names']}")
+    print(f"  -> Dimensão da matriz X           : {X_raw.shape} (entradas legadas para comparação)")
+    print(f"  -> Entradas da comparação anterior: {metadata['feature_names']}")
     print(
         f"  -> Distribuição da classe alvo (y): "
         f"Classe 0 (Normal) = {total_normais} ({total_normais/total_amostras*100:.1f}%) | "
         f"Classe 1 (Atípico) = {total_atipicos} ({total_atipicos/total_amostras*100:.1f}%)"
     )
 
-    # -------------------------------------------------------------------------
-    # ETAPA 2: Treino balanceado limitado e teste independente
-    # -------------------------------------------------------------------------
-    print("\n[ETAPA 2/4] Separando teste independente e treino balanceado de até 5.000 notas...")
-    rng = np.random.default_rng(42)
-    test_idx = rng.choice(total_amostras, min(2000, total_amostras // 5), replace=False)
-    candidates = np.setdiff1d(np.arange(total_amostras), test_idx)
-    train_idx = balanced_training_indices(df_processed, candidates)
-    X_train_raw, X_test_raw = X_raw[train_idx], X_raw[test_idx]
-    y_train, y_test = y[train_idx], y[test_idx]
-
-    X_train_norm, mean_train, std_train = normalize_zscore(X_train_raw)
-    X_test_norm, _, _ = normalize_zscore(X_test_raw, mean=mean_train, std=std_train)
-
-    print(f"  -> Amostras de Treino : {X_train_norm.shape[0]} registros")
-    print(f"  -> Amostras de Teste  : {X_test_norm.shape[0]} registros")
-    print("  -> Normalização Z-Score aplicada com sucesso: (X - mean) / (std + 1e-8)")
-
-    # -------------------------------------------------------------------------
-    # ETAPA 3: Instanciação, Treinamento e Avaliação da Rede Neural (NnModel)
-    # -------------------------------------------------------------------------
-    print("\n[ETAPA 3/4] Treinando a Rede Neural Multilayer Perceptron (NnModel) do zero...")
-    nn = NnModel(
-        X=X_train_norm,
-        y=y_train,
-        n_hidden=16,
-        lr=0.05,
-        activation="tanh",
-        seed=42,
-    )
-    loss_history, acc_history = nn.fit(
-        epochs=2000,
-        verbose_step=400,
-        X_val=X_test_norm,
-        y_val=y_test,
-    )
-
-    y_test_pred, y_test_prob = nn.predict(X_test_norm)
-    test_accuracy = float(np.mean(y_test_pred == y_test))
-
-    vp = int(np.sum((y_test_pred == 1) & (y_test == 1)))
-    vn = int(np.sum((y_test_pred == 0) & (y_test == 0)))
-    fp = int(np.sum((y_test_pred == 1) & (y_test == 0)))
-    fn = int(np.sum((y_test_pred == 0) & (y_test == 1)))
-
-    precisao = vp / (vp + fp + 1e-8)
-    revocacao = vp / (vp + fn + 1e-8)
-
-    print("\n  [Resultados de Desempenho da Rede Neural]")
-    print(f"  -> Loss Inicial (Época 1)    : {loss_history[0]:.4f}")
-    print(f"  -> Loss Final (Época 2000)   : {loss_history[-1]:.4f}")
-    print(f"  -> Acurácia Final em Treino  : {acc_history[-1] * 100:.2f}%")
-    print(f"  -> Acurácia Final em Teste   : {test_accuracy * 100:.2f}%")
-    print(f"  -> Matriz de Confusão (Teste): VP={vp} | VN={vn} | FP={fp} | FN={fn}")
-    print(f"  -> Precisão (Classe Atípica) : {precisao * 100:.2f}% | Recall: {revocacao * 100:.2f}%")
+    print("\n[ETAPAS 2–3/4] Treino, calibração e teste temporal separados...")
+    nn, X_all_norm, mean_train, std_train, transform, evaluation = train_and_evaluate(
+        df_processed, X_raw, balanced_training_indices)
+    metadata['feature_transform'] = transform
+    results = evaluation['test']
+    loss_history, acc_history = nn.loss_history, nn.accuracy_history
+    matrix = results['confusionMatrix']
+    vp, vn, fp, fn = (matrix[k] for k in ('vp', 'vn', 'fp', 'fn'))
+    precisao, revocacao, test_accuracy = results['precision'], results['recall'], results['accuracy']
+    print(f"  -> Teste temporal: precisão={precisao:.2%} recall={revocacao:.2%} F1={results['f1']:.4f}")
+    print(f"  -> Matriz de confusão: {matrix}")
+    print(f"  -> Brier={results['brier']:.6f} ECE={results['ece']:.6f} limiar={nn.decision_threshold:.6f}")
+    evaluation_path = os.path.join('outputs', 'model_evaluation.json')
+    with open(evaluation_path, 'w', encoding='utf-8') as f:
+        json.dump(evaluation, f, ensure_ascii=False, indent=2, allow_nan=False)
 
     # -------------------------------------------------------------------------
     # ETAPA 4: Auditoria de Impacto Social nos Casos Classificados como 1
     # -------------------------------------------------------------------------
     print("\n[ETAPA 4/4] Auditando casos classificados como Atípicos (Classe 1) e gerando parecer social...")
 
-    X_all_norm, _, _ = normalize_zscore(X_raw, mean_train, std_train)
     all_preds, all_probs = nn.predict(X_all_norm)
     df_processed['classePredita'] = all_preds
     df_processed['probabilidadeAtipico'] = all_probs
@@ -324,19 +247,20 @@ def main():
         df_suspeitos=df_suspeitos,
         output_path=os.path.join("outputs", "relatorio_auditoria.md"),
         top_n=8,
+        allow_remote=not args.offline,
     )
 
     excesso_mensal = (
         df_suspeitos["valorLiquido"] - df_suspeitos["mediaAceitavelCategoria"]
     ).clip(lower=0) if not df_suspeitos.empty else np.array([0.0])
     impacto_5_anos_total = float((excesso_mensal * 60.0).sum())
-    merendas_equiv = int(impacto_5_anos_total / 1.50)
 
     metrics_summary = {
         "totalConsolidatedRaw": int(metadata.get("total_consolidado_bruto", total_amostras)),
         "totalRecords": total_amostras,
-        "trainRecords": int(X_train_norm.shape[0]),
-        "testRecords": int(X_test_norm.shape[0]),
+        "trainRecords": evaluation["trainingRecords"],
+        "testRecords": results["records"],
+        "evaluation": evaluation,
         "lossInitial": round(float(loss_history[0]), 4),
         "lossFinal": round(float(loss_history[-1]), 4),
         "trainAccuracy": round(float(acc_history[-1] * 100.0), 2),
@@ -354,7 +278,6 @@ def main():
         mean_train=mean_train,
         std_train=std_train,
         df_all=df_processed,
-        X_all_raw=X_raw,
         metadata=metadata,
         metrics=metrics_summary,
 
@@ -362,7 +285,6 @@ def main():
 
     print(f"  -> Casos atípicos sinalizados na base integral : {len(df_suspeitos)}")
     print(f"  -> Impacto acumulado projetado em 5 anos (60m)    : {format_brl(impacto_5_anos_total)}")
-    print(f"  -> Equivalência direta em Educação (PNAE R$ 1,50) : {merendas_equiv:,} merendas escolares".replace(",", "."))
     print(f"  -> Payload Web (pnpm) exportado em                : {web_json_path}")
 
     print("\n" + "=" * 78)

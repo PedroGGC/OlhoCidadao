@@ -1,5 +1,5 @@
 {
-  "validatedAtUTC": "2026-10-22T23:34:08.830803+00:00",
+  "validatedAtUTC": "2026-10-26T14:49:39.538706+00:00",
   "camaraRecords": 286252,
   "senadoRecords": 39532,
   "totalRecords": 325784,
@@ -8,9 +8,9 @@
   "minimumRecordsPerStateBothYears": 2016,
   "senatorsWithExpensesBothYears": 90,
   "trainingRecords": 5000,
-  "testRecords": 2000,
-  "jsonBytes": 212518232,
-  "gzipBytes": 28192568,
+  "testRecords": 35922,
+  "jsonBytes": 212419453,
+  "gzipBytes": 27472048,
   "coverage": [
     {
       "ano": 2025,
@@ -341,6 +341,6 @@
     "cota_parlamentar_camara_completa.csv": "cc85ba57ad305735dfb22f220624be57d4267464203dc4dde392dda4472136d5",
     "despesas_senadores_ceaps_completo.csv": "200e330f959734cd761fc8e4eaf83c341998edb703069b8a02d349fad29916a6",
     "raw_despesas_camara.csv": "4bb70263170824ef8ab56771f502167a02cdbc8acd94436e52cac8c4e9384f4f",
-    "processed_dataset.csv": "64369e83d157ca30fb9fdaa08a648ce9af9324bb605b70c8fac5c01dc60cb73f"
+    "processed_dataset.csv": "25268260fb4626d7ecfe60932e1f9e52c375f963380c98f9b8fd90ce3ef1af7b"
   }
 }

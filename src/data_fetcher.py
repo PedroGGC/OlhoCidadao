@@ -1,5 +1,6 @@
 import os
 from src.bulk_data import download_expenses, money, save_csv
+from src.model_evaluation import historical_reference
 from src.public_costs import write_indicators
 import requests
 import numpy as np
@@ -321,17 +322,10 @@ def load_and_preprocess_data(
     seed: int = 42,
     refresh: bool = True,
 ) -> Tuple[np.ndarray, np.ndarray, pd.DataFrame, Dict[str, Any]]:
-    """
-    Executa o pipeline completo sobre os bancos de dados públicos massivos:
-    1. Garante o download de TODAS as bases completas em `data/` (+300.000 notas da Câmara,
-       ~40.000 notas do Senado, 513 Deputados, 81 Senadores, 5.570 Prefeituras/Municípios).
-    2. Constrói o dataset unificado (`data/raw_despesas_camara.csv`) combinando notas fiscais
-       de todos os estados, partidos, Deputados Federais e Senadores.
-    3. Extrai as 5 features numéricas para a matriz `X`:
-       [valorLiquido, codTipoDespesa, mes, codPartido, codUF]
-    4. Calcula média e desvio padrão por categoria (`codTipoDespesa`) e define `y = 1`
-       quando `valorLiquido > media + 1.2 * desvio_padrao`.
-    5. Salva dataset processado em `data/processed_dataset.csv`.
+    """Consolida todas as notas e cria alvos com estatísticas históricas de 2025.
+
+    As cinco entradas legadas são devolvidas para a comparação de referência;
+    a rede nova usa ExpenseFeatures (valor logarítmico e categoria one-hot).
     """
     df_camara_full, df_senado_full = download_massive_public_csvs(refresh=refresh)
 
@@ -402,9 +396,8 @@ def load_and_preprocess_data(
     # Usa 100% dos dados consolidados para inferência e métricas
     df = df_unificado_total.copy()
 
-    # Mapeamento das categorias ordenadas pela mediana de gasto
-    medianas_por_cat = df.groupby("tipoDespesa")["valorLiquido"].median().sort_values()
-    mapa_categoria = {cat: idx + 1 for idx, cat in enumerate(medianas_por_cat.index)}
+    # Códigos servem para identificar categorias, nunca como grandezas contínuas.
+    mapa_categoria = {cat: idx + 1 for idx, cat in enumerate(sorted(df.tipoDespesa.unique()))}
 
     partidos_unicos = sorted(df["siglaPartido"].unique())
     mapa_partido = {p: idx + 1 for idx, p in enumerate(partidos_unicos)}
@@ -418,45 +411,14 @@ def load_and_preprocess_data(
     df["mes"] = df["mes"].clip(1, 12).astype(int)
     df["valorLiquido"] = df["valorLiquido"].astype(float)
 
-    # Cálculo da média e desvio padrão por categoria (codTipoDespesa) em toda a base
-    stats_categoria = {}
-    limiares_categoria = {}
-
-    for cod_cat, grupo in df.groupby("codTipoDespesa"):
-        valores = grupo["valorLiquido"].values
-        media_cat = float(np.mean(valores))
-        std_cat = float(np.std(valores))
-
-        # Regra principal solicitada: media + 1.2 * desvio_padrao
-        limiar_padrao = media_cat + 1.2 * std_cat
-
-        limiar_efetivo = limiar_padrao
-
-        valores_normais = valores[valores <= limiar_efetivo]
-        media_aceitavel = float(np.mean(valores_normais)) if len(valores_normais) > 0 else media_cat * 0.6
-
-        nome_cat = grupo["tipoDespesa"].iloc[0]
-        stats_categoria[int(cod_cat)] = {
-            "nome": nome_cat,
-            "media_total": media_cat,
-            "desvio_padrao": std_cat,
-            "media_aceitavel": media_aceitavel,
-            "limiar_atipico": limiar_efetivo,
-        }
-        limiares_categoria[int(cod_cat)] = limiar_efetivo
-
-    # Criação da variável alvo y (0 = Normal, 1 = Atípico/Suspeito)
-    df["limiarCategoria"] = df["codTipoDespesa"].map(limiares_categoria)
-    df["mediaAceitavelCategoria"] = df["codTipoDespesa"].map(
-        {k: v["media_aceitavel"] for k, v in stats_categoria.items()}
-    )
-    df["target"] = (df["valorLiquido"] > df["limiarCategoria"]).astype(int)
+    # Congela o gabarito em 2025, antes de olhar qualquer despesa de avaliação.
+    df, stats_categoria = historical_reference(df)
 
     df = df.sample(frac=1.0, random_state=seed).reset_index(drop=True)
     save_csv(df, PROCESSED_CSV_PATH)
     print(f'[Dados Públicos] Dataset integral exportado: {len(df):,} linhas')
 
-    # Extração das 5 features numéricas em toda a base
+    # Entradas legadas para comparação automática com a arquitetura anterior.
     feature_cols = ["valorLiquido", "codTipoDespesa", "mes", "codPartido", "codUF"]
     X = df[feature_cols].to_numpy(dtype=np.float64)
     y = df["target"].to_numpy(dtype=np.int64)

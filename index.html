@@ -177,7 +177,7 @@
           <span class="kpi-sub" id="kpi-excesso-mensal">—</span>
         </article>
         <article class="surface-card kpi-box kpi-box-accent">
-          <span class="kpi-title">Excesso real no período</span>
+          <span class="kpi-title">Excedente estatístico no período</span>
           <strong class="kpi-number" id="kpi-excesso-periodo">—</strong>
           <span class="kpi-sub" id="kpi-obras-cobertas">—</span>
         </article>
@@ -333,11 +333,15 @@
           </div>
         </div>
         <div class="tech-kpi-grid">
-          <div class="tech-metric-box"><span>Arquitetura</span><strong>5 → 16 (tanh) → 2</strong><small>Softmax + Cross-Entropy</small></div>
-          <div class="tech-metric-box"><span>Queda do erro</span><strong id="tech-loss">—</strong><small>2.000 épocas · lr = 0.05</small></div>
+          <div class="tech-metric-box"><span>Arquitetura</span><strong id="tech-architecture">—</strong><small>NumPy · tanh · Softmax</small></div>
+          <div class="tech-metric-box"><span>Queda do erro</span><strong id="tech-loss">—</strong><small id="tech-training">—</small></div>
           <div class="tech-metric-box"><span>Acurácia no teste</span><strong id="tech-acc">—</strong><small id="tech-prec-rec">—</small></div>
           <div class="tech-metric-box"><span>Matriz de confusão</span><strong id="tech-confusion">—</strong><small id="tech-confusion-fp">—</small></div>
         </div>
+        <p id="tech-protocol" class="card-subtitle"></p>
+        <p id="tech-comparison" class="footnote"></p>
+        <p id="tech-calibration" class="footnote"></p>
+        <p class="footnote">Avaliação totalmente automática de atipicidade estatística. O gabarito usa somente despesas de 2025; não há rótulos de fraude comprovada. Partido e UF permanecem disponíveis nos filtros de consulta.</p>
       </div>
 
       <div class="charts-grid">
@@ -352,15 +356,12 @@
             <div class="sim-form-grid">
               <label for="sim-valor">Valor líquido (R$)<input type="number" id="sim-valor" step="50" min="10" max="150000" value="9500" /></label>
               <label for="sim-categoria">Categoria<select id="sim-categoria"></select></label>
-              <label for="sim-mes">Mês<input type="number" id="sim-mes" min="1" max="12" value="8" /></label>
-              <label for="sim-partido">Partido<select id="sim-partido"></select></label>
-              <label for="sim-uf">UF<select id="sim-uf"></select></label>
             </div>
           </form>
           <div class="sim-result-box">
             <div class="sim-result-top">
               <div><span class="sim-small-label">Saída da rede</span><h4 id="sim-verdict">—</h4></div>
-              <div class="sim-prob-right"><span class="sim-small-label">P(classe 1)</span><strong id="sim-prob" class="mono">—</strong></div>
+              <div class="sim-prob-right"><span class="sim-small-label">Score calibrado</span><strong id="sim-prob" class="mono">—</strong></div>
             </div>
             <div class="prob-bar-track"><div id="sim-prob-bar" class="prob-bar-fill"></div></div>
             <p id="sim-impact-preview" class="sim-impact-text"></p>

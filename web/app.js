@@ -1,3 +1,4 @@
+import { predictMlpBrowser } from './model.js';
 import { filterWorks, cityOptions, workMunicipalities, comparisonValue } from './works.js';
 import { decodeRecords, loadDashboardData, loadSummary, pickFilterColumns } from './dataset.js';
 /* =========================================================================
@@ -104,29 +105,6 @@ const AVATAR_FALLBACK = 'data:image/svg+xml;utf8,' + encodeURIComponent(
 /* -------------------------------------------------------------------------
    Rede neural no navegador (usada no simulador da Ficha Técnica)
    ------------------------------------------------------------------------- */
-function predictMlpBrowser(features, modelParams) {
-  const { mean, std, W1, b1, W2, b2 } = modelParams;
-  const xNorm = features.map((val, i) => (val - mean[i]) / (std[i] + 1e-8));
-
-  const a1 = b1.map((bias, j) => {
-    let z = bias;
-    for (let i = 0; i < xNorm.length; i++) z += xNorm[i] * W1[i][j];
-    return Math.tanh(z);
-  });
-
-  const z2 = b2.map((bias, k) => {
-    let s = bias;
-    for (let j = 0; j < a1.length; j++) s += a1[j] * W2[j][k];
-    return s;
-  });
-
-  const maxZ = Math.max(...z2);
-  const exps = z2.map((v) => Math.exp(v - maxZ));
-  const sum = exps.reduce((a, v) => a + v, 0);
-  const probs = exps.map((v) => v / sum);
-  return { classePredita: probs[1] >= 0.5 ? 1 : 0, probabilidadeAtipico: probs[1], a1 };
-}
-
 /* -------------------------------------------------------------------------
    Abas (com navegação por setas do teclado)
    ------------------------------------------------------------------------- */
@@ -1078,24 +1056,34 @@ function renderObrasGrid(totalExcesso, f, rows) {
    ------------------------------------------------------------------------- */
 function setupTechnicalTab(data) {
   const m = data.metrics;
+  const evaluation = m.evaluation;
+  const params = data.modelParams;
+  $('tech-architecture').textContent = `${params.n_input} → ${params.n_hidden} → 2`;
+  $('tech-training').textContent = evaluation
+    ? `${intFmt.format(m.trainRecords)} notas · Adam · época ${evaluation.bestEpoch}` : 'Treino em CPU';
+  if (evaluation) {
+    const test = evaluation.test;
+    const baseline = evaluation.baselineSameTemporalTest;
+    $('tech-protocol').textContent = `${intFmt.format(test.records)} notas no teste de jul–out/2026, reservado até a escolha final. Treino: 2025; validação: jan–mar; calibração: abr–mai; limiar: jun/2026.`;
+    $('tech-comparison').textContent = `Comparação no mesmo teste: precisão ${(baseline.precision * 100).toFixed(2)}% → ${(test.precision * 100).toFixed(2)}%; F1 ${(baseline.f1 * 100).toFixed(2)}% → ${(test.f1 * 100).toFixed(2)}%. Falsos positivos: ${intFmt.format(baseline.confusionMatrix.fp)} → ${intFmt.format(test.confusionMatrix.fp)}.`;
+    $('tech-calibration').textContent = `Brier: ${test.brier.toFixed(4)} · Erro de calibração (ECE): ${(test.ece * 100).toFixed(2)} p.p. · Limiar automático: ${(evaluation.decisionThreshold * 100).toFixed(2)}%. Score referente ao alvo estatístico, não à probabilidade de corrupção.`;
+  }
   $('tech-loss').textContent = `${m.lossInitial.toFixed(4)} → ${m.lossFinal.toFixed(4)}`;
   $('tech-acc').textContent = `${m.testAccuracy.toFixed(2)}%`;
   $('tech-prec-rec').textContent = `Precisão ${m.precision.toFixed(1)}% · Recall ${m.recall.toFixed(1)}%`;
   $('tech-confusion').textContent = `VP ${m.confusionMatrix.vp} · VN ${m.confusionMatrix.vn}`;
   $('tech-confusion-fp').textContent = `FP ${m.confusionMatrix.fp} · FN ${m.confusionMatrix.fn}`;
 
-  const opts = (obj) => Object.entries(obj).map(([n, c]) => `<option value="${c}">${esc(n)}</option>`).join('');
+  const opts = (obj) => Object.entries(obj).map(([n, c]) => `<option value="${c}">${esc(n || 'Categoria não informada na fonte')}</option>`).join('');
   $('sim-categoria').innerHTML = opts(data.mappings.mapaCategoria);
-  $('sim-uf').innerHTML = opts(data.mappings.mapaUF);
-  $('sim-partido').innerHTML = opts(data.mappings.mapaPartido);
+  const defaultCategory = Object.entries(data.mappings.mapaCategoria).find(([name]) => name.trim());
+  if (defaultCategory) $('sim-categoria').value = String(defaultCategory[1]);
+  $('sim-form').addEventListener('submit', (event) => event.preventDefault());
 
   const update = () => {
     const valor = parseFloat($('sim-valor').value) || 0;
     const cat = parseInt($('sim-categoria').value, 10) || 1;
-    const mes = parseInt($('sim-mes').value, 10) || 1;
-    const part = parseInt($('sim-partido').value, 10) || 1;
-    const uf = parseInt($('sim-uf').value, 10) || 1;
-    const res = predictMlpBrowser([valor, cat, mes, part, uf], data.modelParams);
+    const res = predictMlpBrowser({ valorLiquido: valor, codTipoDespesa: cat }, data.modelParams);
     const stats = data.mappings.categorias[String(cat)] || { media_aceitavel: valor * 0.4 };
 
     const verdict = $('sim-verdict');
@@ -1103,12 +1091,12 @@ function setupTechnicalTab(data) {
     $('sim-prob').textContent = `${(res.probabilidadeAtipico * 100).toFixed(1)}%`;
     bar.style.inlineSize = `${Math.max(3, res.probabilidadeAtipico * 100)}%`;
     const alert = res.classePredita === 1;
-    verdict.textContent = alert ? 'Classe 1 — acima do padrão' : 'Classe 0 — dentro da média';
+    verdict.textContent = alert ? 'Classe 1 — acima do padrão' : 'Classe 0 — sem alerta estatístico';
     verdict.className = alert ? 'verdict-alert' : 'verdict-ok';
     bar.className = `prob-bar-fill ${alert ? 'alert' : 'ok'}`;
     $('sim-impact-preview').textContent = alert
-      ? `Excesso estimado de ${brl.format(Math.max(valor - stats.media_aceitavel, valor * 0.3))} frente à média da categoria (${brl.format(stats.media_aceitavel)}).`
-      : `Compatível com a média da categoria (${brl.format(stats.media_aceitavel)}).`;
+      ? `Excesso estimado de ${brl.format(Math.max(valor - stats.media_aceitavel, 0))} frente à média da categoria (${brl.format(stats.media_aceitavel)}).`
+      : `Sem alerta pelo limiar calibrado. Média histórica da categoria (${brl.format(stats.media_aceitavel)}).`;
 
     $('neurons-grid').innerHTML = res.a1.map((v, i) => {
       const a = 0.1 + Math.min(1, Math.abs(v)) * 0.35;
@@ -1117,7 +1105,7 @@ function setupTechnicalTab(data) {
     }).join('');
   };
 
-  ['sim-valor', 'sim-categoria', 'sim-mes', 'sim-partido', 'sim-uf'].forEach((id) => $(id).addEventListener('input', update));
+  ['sim-valor', 'sim-categoria'].forEach((id) => $(id).addEventListener('input', update));
   update();
 }
 
@@ -1144,7 +1132,7 @@ function exportCsv() {
     ['Valor (R$)', (r) => r.valorLiquido.toFixed(2).replace('.', ',')],
     ['Média da categoria (R$)', (r) => r.mediaAceitavelCategoria.toFixed(2).replace('.', ',')],
     ['Alerta IA', (r) => (r.classePredita === 1 ? 'Sim' : 'Não')],
-    ['Probabilidade alerta', (r) => (r.probabilidadeAtipico * 100).toFixed(1).replace('.', ',')],
+    ['Score calibrado de atipicidade', (r) => (r.probabilidadeAtipico * 100).toFixed(1).replace('.', ',')],
     ['Link da nota', (r) => r.urlDocumento],
   ];
   const cell = (v) => `"${String(v ?? '').replaceAll('"', '""')}"`;
