@@ -1,5 +1,6 @@
 """Concilia dumps, CSVs e payload sem rede: python scripts/validate_dataset.py."""
 import gzip
+import argparse
 import hashlib
 import json
 from pathlib import Path
@@ -8,6 +9,10 @@ from datetime import datetime, timezone
 import numpy as np
 import pandas as pd
 
+parser = argparse.ArgumentParser(description=__doc__)
+parser.add_argument('--check', action='store_true', help='Confere o relatório existente sem alterar arquivos')
+parser.add_argument('--update-if-changed', action='store_true', help='Preserva a data do relatório se os dados forem idênticos')
+args = parser.parse_args()
 root = Path(__file__).resolve().parents[1]
 data = root / 'data'
 camara = pd.read_csv(data / 'cota_parlamentar_camara_completa.csv', dtype=str, keep_default_na=False)
@@ -61,6 +66,12 @@ report = {
         'cota_parlamentar_camara_completa.csv', 'despesas_senadores_ceaps_completo.csv',
         'raw_despesas_camara.csv', 'processed_dataset.csv']},
 }
-(root / 'outputs/data_quality_report.json').write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
+report_path = root / 'outputs/data_quality_report.json'
+previous = json.loads(report_path.read_text(encoding='utf-8')) if report_path.exists() else {}
+comparable = lambda value: {key: item for key, item in value.items() if key != 'validatedAtUTC'}
+if args.check:
+    assert comparable(previous) == comparable(report), 'Relatório de qualidade não corresponde aos dados atuais'
+elif not args.update_if_changed or comparable(previous) != comparable(report):
+    report_path.write_text(json.dumps(report, ensure_ascii=False, indent=2), encoding='utf-8')
 print(json.dumps({key: value for key, value in report.items() if key not in ['coverage', 'sha256']}, indent=2))
 print(summary[summary.siglaUF.eq('MA')].to_string(index=False))

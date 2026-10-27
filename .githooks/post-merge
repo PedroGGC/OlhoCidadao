@@ -1,0 +1,9 @@
+#!/bin/sh
+[ "$OLHO_SKIP_GIT_HOOK" = "1" ] && exit 0
+root=$(git rev-parse --show-toplevel) || exit 1
+[ -f "$root/scripts/project.mjs" ] || exit 0
+if ! command -v node >/dev/null 2>&1; then
+  echo 'OlhoCidadão: instale Node.js 22 e execute pnpm install para preparar os dados.' >&2
+  exit 1
+fi
+node "$root/scripts/project.mjs" after-sync
