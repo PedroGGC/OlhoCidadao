@@ -45,13 +45,11 @@ Total positivo: **R$ 418.329.396,80**, nas 27 UFs. O menor total estadual é 2.0
 
 ## Treinamento e dashboard
 
-`NnModel` é inicializada do zero. São separadas 2.000 notas para teste; o treino seleciona até 5.000 outras notas, sem reposição, metade por classe e com representação de UF, Casa e ano. A normalização usa somente o treino. O `forward` é executado sobre os 325.784 registros para gerar as classes e probabilidades finais, salvas também no CSV processado.
+`NnModel` é inicializada do zero em NumPy, com treino balanceado de até 5.000 notas de 2025 e inferência nos 325.784 registros. Referências por categoria também usam somente 2025. Entradas: valor logarítmico, contexto histórico e categoria one-hot, sem códigos contínuos de partido/UF.
 
-O alvo é a regra estatística de categoria `valor > média + 1,2 × desvio-padrão`. Foi removido o ajuste anterior por percentil que forçava mais alertas. O excedente comparativo usa a diferença positiva em relação à média de referência, sem piso artificial de 30%.
+Validação jan–mar/2026 escolhe arquitetura e época; abr–mai calibra os scores; junho escolhe o limiar; julho em diante fica reservado ao teste final. Nesse teste de 35.922 notas, precisão 98,63%, recall 99,69% e F1 99,16%. A avaliação é totalmente automática, sem revisão humana. As métricas medem concordância com a regra histórica `valor > média + 1,2 × desvio`, não fraude comprovada. Protocolo e comparação: [MODEL_CARD.md](MODEL_CARD.md); métricas completas: [outputs/model_evaluation.json](outputs/model_evaluation.json).
 
-As métricas medem concordância com esse alvo heurístico, não detecção comprovada de fraude. Nesta execução: acurácia de teste 91,70%, precisão 43,36% e recall 96,87%. A precisão evidencia falsos positivos relevantes; os alertas exigem análise humana. As estatísticas de categoria descrevem a base consolidada, portanto não se trata de avaliação temporal de gastos futuros.
-
-O JSON usa colunas e dicionários de textos repetidos, preservando cada registro. `dashboard_data.json` tem 57,3 MB e sua versão gzip 9,8 MB. O navegador prefere gzip e possui fallback para JSON; as tabelas continuam paginadas. Totais e filtros sempre operam sobre a base inteira. Não se utiliza amostragem para aumentar artificialmente o volume estadual.
+O JSON usa colunas e dicionários de textos repetidos, preservando cada registro. `dashboard_data.json` tem cerca de 212,4 MB e sua versão gzip 27,5 MB, incluindo o cadastro nacional de obras. O navegador prefere gzip e possui fallback para JSON; as tabelas continuam paginadas. Totais e filtros sempre operam sobre a base inteira. Não se utiliza amostragem para aumentar artificialmente o volume estadual.
 
 Os campos legados `excessoMensal`/`monthlyExcessTotal` representam o excedente das notas do recorte, não uma despesa mensal recorrente. `impacto5Anos` é apenas cenário hipotético de repetição por 60 meses; não é gasto público observado nem projeção estatística validada.
 
