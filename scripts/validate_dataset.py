@@ -29,7 +29,8 @@ assert (processed.valorLiquido > 0).all()
 assert np.isfinite(processed[['valorLiquido', 'probabilidadeAtipico', 'limiarCategoria']].to_numpy()).all()
 assert processed.probabilidadeAtipico.between(0, 1).all()
 assert set(processed.classePredita.unique()) <= {0, 1}
-assert payload['metrics']['trainRecords'] <= 5000
+# O fit usa só a amostra balanceada de 2025; a inferência cobre a base integral.
+assert payload['metrics']['trainRecords'] <= payload['metrics']['evaluation']['periods']['reference']['records']
 assert payload['metrics']['sampling'] == 'none'
 
 def cents(series):

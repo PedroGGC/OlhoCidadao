@@ -247,7 +247,6 @@ def main():
         df_suspeitos=df_suspeitos,
         output_path=os.path.join("outputs", "relatorio_auditoria.md"),
         top_n=8,
-        allow_remote=not args.offline,
     )
 
     excesso_mensal = (

@@ -17,7 +17,9 @@ export function predictMlpBrowser(expense, modelParams) {
   const a1 = b1.map((bias, j) => {
     let z = bias;
     for (let i = 0; i < normalized.length; i++) z += normalized[i] * W1[i][j];
-    return modelParams.activation === 'leaky_relu' ? (z > 0 ? z : .01 * z) : Math.tanh(z);
+    if (modelParams.activation === 'leaky_relu') return z > 0 ? z : .01 * z;
+    if (modelParams.activation === 'sigmoid') return z >= 0 ? 1 / (1 + Math.exp(-z)) : Math.exp(z) / (1 + Math.exp(z));
+    return Math.tanh(z);
   });
   const logits = b2.map((bias, k) => {
     let value = bias;

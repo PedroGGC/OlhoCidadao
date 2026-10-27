@@ -40,10 +40,10 @@ class AutonomousModelTests(unittest.TestCase):
             previous = periods[indices].max()
         self.assertEqual(len(seen), len(df))
 
-    def test_gradients_match_finite_differences_for_both_activations(self):
+    def test_gradients_match_finite_differences_for_all_activations(self):
         rng = np.random.default_rng(9)
         X, y = rng.normal(size=(12, 3)), np.arange(12) % 2
-        for activation in ('tanh', 'leaky_relu'):
+        for activation in ('tanh', 'sigmoid', 'leaky_relu'):
             model = NnModel(X, y, n_hidden=4, lr=.001, activation=activation, weight_decay=.002)
             numerical = {}
             for name in ('W1', 'b1', 'W2', 'b2'):

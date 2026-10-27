@@ -1056,11 +1056,30 @@ function renderObrasGrid(totalExcesso, f, rows) {
 /* -------------------------------------------------------------------------
    Aba 3 — ficha técnica
    ------------------------------------------------------------------------- */
+const ACTIVATION_TEXT = {
+  tanh: { formula: 'a1 = tanh(X·W1 + b1)', numpy: 'a1 = np.tanh(np.dot(X_norm, W1) + b1)',
+    derivative: 'delta1 = np.dot(delta2, W2.T) * (1 - a1**2)' },
+  sigmoid: { formula: 'a1 = σ(X·W1 + b1)', numpy: 'a1 = 1 / (1 + np.exp(-(np.dot(X_norm, W1) + b1)))',
+    derivative: 'delta1 = np.dot(delta2, W2.T) * a1 * (1 - a1)' },
+  leaky_relu: { formula: 'a1 = max(0,01·z, z)', numpy: 'a1 = np.where(z > 0, z, 0.01 * z)',
+    derivative: 'delta1 = np.dot(delta2, W2.T) * np.where(z > 0, 1, 0.01)' },
+};
+
 function setupTechnicalTab(data) {
   const m = data.metrics;
   const evaluation = m.evaluation;
   const params = data.modelParams;
   $('tech-architecture').textContent = `${params.n_input} → ${params.n_hidden} → 2`;
+  const activation = ACTIVATION_TEXT[params.activation] || ACTIVATION_TEXT.tanh;
+  $('tech-activation').textContent = `NumPy · ${params.activation || 'tanh'} · Softmax`;
+  $('sim-activation-formula').textContent = activation.formula;
+  $('math-activation-title').textContent = `Ativação customizada (${params.activation || 'tanh'})`;
+  $('math-activation').textContent = activation.numpy;
+  $('math-derivative').textContent = activation.derivative;
+  const compared = evaluation?.activationComparison;
+  $('math-activation-comparison').textContent = compared
+    ? compared.map((c) => `${c.activation} ${c.hidden}${c.eligible === false ? ' (referência)' : ''}: ${c.validationErrors} erros · F1 ${(c.validationF1 * 100).toFixed(2)}%`).join(' | ')
+    : '—';
   $('tech-training').textContent = evaluation
     ? `${intFmt.format(m.trainRecords)} notas · Adam · época ${evaluation.bestEpoch}` : 'Treino em CPU';
   if (evaluation) {

@@ -1,53 +1,83 @@
 # Dados, metodologia e avaliação da IA
 
-Implementado em 26/10/2026. A coleta usada nesta execução é de 29/10/2026. Todo o treino, seleção, calibração, classificação e avaliação são automáticos, sem revisão humana. A MLP e o Adam são implementados do zero em NumPy, sem frameworks de aprendizagem.
+Protocolo 3, implementado em 27/10/2026 sobre a coleta de 22/10/2026. Todo o treino, seleção, calibração, classificação e avaliação são automáticos, sem revisão humana. A MLP e o Adam são implementados do zero em NumPy, sem frameworks de aprendizagem e sem nenhum modelo ou API de IA externo: tudo roda localmente em CPU.
 
 ## O que a exatidão significa
 
-O sistema aprende um gabarito estatístico: valor da nota acima da média de sua categoria em 2025 mais 1,2 desvios padrão de 2025. Os arquivos públicos não contêm rótulos de fraude comprovada. Portanto, 99,06% de precisão significa concordância dos alertas com esse critério histórico, não 99,06% de certeza de corrupção.
+O sistema aprende um gabarito estatístico: valor da nota acima da média de sua categoria em 2025 mais 1,2 desvios padrão de 2025. Os arquivos públicos não contêm rótulos de fraude comprovada. Portanto, 99,54% de precisão significa concordância dos alertas com esse critério histórico, não 99,54% de certeza de corrupção.
 
 A fórmula do alvo e seu limiar não entram na rede. Entram `log1p(valor)`, o log do valor padronizado com média/desvio logarítmicos históricos da categoria e categorias one-hot. Partido, UF, mês e identidade do parlamentar não entram na decisão. Existem 25 categorias conhecidas, uma posição desconhecida e duas entradas numéricas: **28 → 16 tanh → 2 Softmax**.
+
+Como o gabarito é uma fronteira por categoria, a tarefa da rede é aprender 25 "degraus" a partir de exemplos, sem conhecer a fórmula. A regra aplicada diretamente acertaria 100% por definição; ela é o teto da tarefa, não um concorrente. Os erros restantes ficam concentrados perto da fronteira (tabela abaixo), que é exatamente onde uma função contínua aproxima um degrau.
 
 ## Separação dos dados
 
 | Papel | Competência | Registros |
 | --- | --- | ---: |
-| Referências históricas | jan–dez/2025 | 193.825 |
-| Fit | Subconjunto de 2025 | 5.000, sem reposição, classes balanceadas |
-| Parada e escolha de arquitetura | jan–mar/2026 | 5.000 de 44.783, distribuição natural |
-| Calibração sigmoidal | abr–mai/2026 | 35.442, distribuição natural |
-| Escolha de limiar | jun/2026 | 16.249, distribuição natural |
-| Teste reservado | jul–out/2026 | 38.407, distribuição natural |
+| Referências históricas | jan–dez/2025 | 193.477 |
+| Fit | Subconjunto de 2025 | 25.278: todos os 12.639 positivos e o mesmo número de normais |
+| Parada antecipada | jan–mar/2026 | 5.000 de 44.729, distribuição natural |
+| Escolha de ativação/arquitetura | jan–mar/2026 | 44.729, distribuição natural |
+| Calibração sigmoidal | abr–mai/2026 | 35.417, distribuição natural |
+| Escolha de limiar | jun/2026 | 16.239, distribuição natural |
+| Teste reservado | jul–out/2026 | 35.922, distribuição natural |
 
-As referências e os alvos de todos os períodos são definidos usando somente 2025. A normalização numérica é ajustada nas 5.000 notas de treino. A amostragem garante representação dos estratos existentes de classe, UF, Casa e categoria e usa semente 42.
+As referências e os alvos de todos os períodos são definidos usando somente 2025. A normalização numérica é ajustada nas notas de treino. A amostragem garante representação dos estratos existentes de classe, UF, Casa e categoria e usa semente 42.
 
-As candidatas têm 16 e 32 neurônios, Adam com taxa 0,01, L2 de 0,00001, até 1.200 épocas e parada por perda de validação com paciência 100. Os melhores pesos são recuperados. A escolha da arquitetura maximiza average precision em jan–mar; escolheu 16 neurônios, época 682. O teste final não é exibido durante o fit nem usado para escolher parâmetros.
+## Treino e escolha da ativação
 
-A calibração usa somente abr–mai, corrigindo a saída da rede balanceada para a população natural. Junho escolhe o limiar que maximiza F1 com recall mínimo de 90% nesse período. Limiar final: aproximadamente **32,1843%**. A meta de recall na validação não garante o mesmo resultado em dados futuros.
+Adam com taxa 0,01, sem L2, até 6.000 épocas e parada por perda de validação com paciência 100; os melhores pesos são recuperados. Os ajustes do protocolo 3 foram decididos só com jan–jun/2026:
+
+| Mudança | Efeito na validação jan–mar |
+| --- | --- |
+| Fit de 5.000 → 25.278 notas | erros caíram de 60 para 32 |
+| L2 de 0,00001 → 0 | erros caíram de 32 para 24 (a penalidade suavizava o degrau) |
+
+Quatro candidatas são treinadas com os mesmos dados e escolhidas pelo F1 em jan–mar no melhor limiar desse período. A sigmoide, ativação original da rede de referência da disciplina, é treinada só como comparação, pois a atividade exige trocar a ativação:
+
+| Ativação | Neurônios | Melhor época | Erros jan–mar | F1 jan–mar |
+| --- | ---: | ---: | ---: | ---: |
+| **tanh (escolhida)** | 16 | 1.778 | 21 | 99,681% |
+| sigmoide (referência) | 16 | 2.297 | 20 | 99,696% |
+| leaky ReLU | 16 | 1.169 | 21 | 99,681% |
+| tanh | 32 | 629 | 21 | 99,681% |
+
+As ativações empatam em qualidade (diferença de um erro em 44.729 notas). A tanh converge em 23% menos épocas que a sigmoide e é centrada em zero, combinando com as entradas Z-Score; com 16 neurônios empata com 32, então a rede menor é mantida.
+
+A calibração usa somente abr–mai, corrigindo a saída da rede balanceada para a população natural. Junho escolhe o limiar que maximiza F1 com recall mínimo de 90% nesse período. Limiar final: aproximadamente **38,24%**.
 
 ## Resultado no teste reservado
 
-A referência é a arquitetura anterior de cinco entradas, retreinada nos mesmos 5.000 registros históricos, com categorias ordenadas pela mediana histórica, mesma validação temporal e taxa efetiva original de gradiente. Sua saída segue o limiar original de 50%, sem calibração. As duas abordagens enfrentam exatamente as mesmas 38.407 notas e o mesmo gabarito congelado.
+A referência é a arquitetura anterior de cinco entradas, retreinada nos mesmos registros históricos, com categorias ordenadas pela mediana histórica, mesma validação temporal e taxa efetiva original de gradiente. Sua saída segue o limiar original de 50%, sem calibração. A tabela também traz o modelo do protocolo 2 (fit de 5.000 notas, com L2). Todos enfrentam exatamente as mesmas 35.922 notas e o mesmo gabarito congelado.
 
-| Métrica | Arquitetura anterior | Modelo refinado |
+| Métrica | Arquitetura anterior | Protocolo 2 | **Protocolo 3** |
+| --- | ---: | ---: | ---: |
+| Acurácia | 96,3810% | 99,8775% | **99,9638%** |
+| Precisão | 75,9524% | 98,6343% | **99,5418%** |
+| Recall | 73,3896% | 99,6933% | **99,9617%** |
+| F1 | 74,6490% | 99,1609% | **99,7513%** |
+| Average precision | 84,9909% | 99,8889% | **99,8897%** |
+| Falsos positivos | 606 | 36 | **12** |
+| Falsos negativos | 694 | 8 | **1** |
+| Brier | 0,026903 | 0,001237 | **0,000634** |
+| ECE, dez faixas | 2,9195 p.p. | 0,1248 p.p. | **0,1396 p.p.** |
+
+Os erros no teste caíram de 44 para 13. A regra de sempre prever normal teria acurácia de aproximadamente 92,74%, com recall zero. O teste contém 2.608 positivos estatísticos. Os intervalos Wilson de 95% são aproximadamente 99,20–99,74% para precisão e 99,78–99,99% para recall; não ajustam dependência entre notas do mesmo parlamentar.
+
+Onde estão os erros, pela distância relativa entre o valor da nota e o limiar da sua categoria:
+
+| Distância ao limiar | Notas | Erros |
 | --- | ---: | ---: |
-| Acurácia | 96,1908% | 99,8568% |
-| Precisão | 74,6853% | 99,0605% |
-| Recall | 74,2957% | 99,0261% |
-| F1 | 74,4900% | 99,0433% |
-| Average precision | 83,7815% | 99,8349% |
-| Verdadeiros positivos | 2.136 | 2.847 |
-| Verdadeiros negativos | 34.808 | 35.505 |
-| Falsos positivos | 724 | 27 |
-| Falsos negativos | 739 | 28 |
-| Brier | 0,029045 | 0,001564 |
-| ECE, dez faixas | 2,8572 p.p. | 0,1563 p.p. |
-
-A redução de falsos positivos foi de 96,27%. A regra de sempre prever normal teria acurácia de aproximadamente 92,51%, com recall zero. O teste contém 2.875 positivos estatísticos. Os intervalos Wilson de 95% são aproximadamente 98,64–99,35% para precisão e 98,60–99,33% para recall; não ajustam dependência entre notas do mesmo parlamentar.
+| até 1% | 62 | 6 |
+| 1–5% | 369 | 1 |
+| 5–20% | 1.158 | 4 |
+| acima de 20% | 34.333 | 2 |
 
 O teste artificial aumentou 2.000 notas inicialmente normais para duas vezes o limiar histórico da respectiva categoria: 100% foram detectadas. Esse teste avalia sensibilidade a aumento de valor; seus exemplos não são notas reais de fraude e não entram no resultado principal.
 
-Relatório reproduzível com métricas por UF, Casa e categoria, contagens e faixas de calibração: `outputs/model_evaluation.json` (restaurado pelo snapshot). Nenhum resultado do teste foi usado para retreinar ou ajustar o modelo após sua avaliação.
+Relatório reproduzível com métricas por UF, Casa e categoria, comparação de ativações, erros por distância ao limiar e faixas de calibração: `outputs/model_evaluation.json` (restaurado pelo snapshot).
+
+**Transparência sobre o teste:** jul–out/2026 já tinha sido avaliado no protocolo 2. As mudanças do protocolo 3 foram escolhidas só com jan–jun e o teste foi lido uma vez, ao final, mas ele não é mais inédito para o projeto. Um teste totalmente independente exige meses posteriores a out/2026.
 
 ## Limites da avaliação automática
 
@@ -55,7 +85,7 @@ O teste mede generalização temporal do critério escolhido, cuja regra é simp
 
 Categorias inéditas usam a referência global histórica e uma entrada desconhecida explícita. Não há garantia de calibração para categorias ausentes do treino. As métricas detalhadas devem ser interpretadas com a contagem de positivos de cada grupo, especialmente grupos pequenos.
 
-O limite histórico de 2025 permanece congelado para esta experiência. Usar os resultados de julho–outubro para criar novas versões exige um novo período reservado para manter a avaliação futura independente. Repetir a mesma execução verifica reprodutibilidade, não cria um novo teste independente.
+O limite histórico de 2025 permanece congelado. Repetir a mesma execução verifica reprodutibilidade, não cria um novo teste independente.
 
 ## Reproduzir e conferir
 
@@ -68,14 +98,14 @@ python scripts/validate_dataset.py --check
 pnpm build
 ```
 
-`validate_model.py` reconcilia todas as 328.706 inferências e as métricas do teste com os pesos exportados. Os testes JavaScript comparam o mesmo contrato em notas, extremos e valores próximos à fronteira, com tolerância de 1e-10. Os nomes dos CSVs permanecem iguais. A base integral continua disponível no dashboard; apenas o fit é limitado a 5.000 notas.
+`validate_model.py` reconcilia todas as 325.784 inferências e as métricas do teste com os pesos exportados. Os testes JavaScript comparam o mesmo contrato em notas, extremos e valores próximos à fronteira, com tolerância de 1e-10. Os nomes dos CSVs permanecem iguais. A base integral continua disponível no dashboard; apenas o fit usa a amostra balanceada de 25.278 notas de 2025.
 
 Referências metodológicas: [separação temporal](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html) e [calibração de probabilidades](https://scikit-learn.org/stable/modules/calibration.html). As implementações deste projeto usam NumPy, não scikit-learn.
 
 
 ## Fontes e cobertura dos dados
 
-A coleta de despesas utilizada neste snapshot é de 29/10/2026. Inclui 289.067 lançamentos da Câmara e 39.639 do Senado: **328.706 despesas positivas**, **R$ 422.670.871,03** e 27 UFs. O ano de 2026 é parcial. Esses valores não são o saldo líquido após estornos; não há multiplicação ou reponderação de notas.
+A coleta de despesas utilizada neste snapshot é de 22/10/2026. Inclui 286.252 lançamentos da Câmara e 39.532 do Senado: **325.784 despesas positivas**, **R$ 418.329.396,80** e 27 UFs. O ano de 2026 é parcial. Esses valores não são o saldo líquido após estornos; não há multiplicação ou reponderação de notas.
 
 - Câmara: dumps oficiais [2025](https://www.camara.leg.br/cotas/Ano-2025.csv.zip) e [2026](https://www.camara.leg.br/cotas/Ano-2026.csv.zip), abertos em memória, UTF-8 e separador `;`.
 - Senado: consolidados CEAPS [2025](https://www.senado.leg.br/transparencia/LAI/verba/despesa_ceaps_2025.csv) e [2026](https://www.senado.leg.br/transparencia/LAI/verba/despesa_ceaps_2026.csv), Latin-1 e preâmbulo de atualização ignorado.
@@ -83,7 +113,7 @@ A coleta de despesas utilizada neste snapshot é de 29/10/2026. Inclui 289.067 l
 - Entram valores positivos identificados com UF válida. Lideranças da Câmara sem UF e estornos negativos ficam fora. Um documento pode ter lançamentos distintos, portanto o número da nota isolado não é usado para eliminar registros.
 - CNPJ/CPF e número documental são texto. Datas inválidas publicadas são preservadas; a competência oficial de ano/mês determina as partições.
 
-Maranhão: 3.785 notas/R$ 9.682.875,86 em 2025 e 2.220 notas/R$ 5.807.414,53 em 2026. O relatório `outputs/data_quality_report.json`, fornecido pelo snapshot, concilia valores em centavos e hashes das fontes, CSVs e payload.
+Maranhão: 3.784 notas/R$ 9.679.640,60 em 2025 e 2.153 notas/R$ 5.651.857,01 em 2026. O relatório `outputs/data_quality_report.json`, fornecido pelo snapshot, concilia valores em centavos e hashes das fontes, CSVs e payload.
 
 ## Obras e municípios
 
@@ -103,6 +133,6 @@ São cenários aproximados, não contratos ou tarifas nacionais uniformes. Refer
 
 ## Contexto acadêmico
 
-Atividade prática do 2º bimestre de Redes Neurais/IA, individual ou em dupla, com apresentação prevista para 30/10/2026. Os requisitos são rede do zero, dados brasileiros e adaptação de arquitetura/ativação. O projeto mantém álgebra NumPy, Softmax, entropia cruzada, `forward`, `loss`, `backpropagation` e `fit`, com ativação `tanh` e sua derivada analítica.
+Atividade prática do 2º bimestre de Redes Neurais/IA, individual ou em dupla, com apresentação prevista para 30/10/2026. Os requisitos são rede do zero, dados brasileiros e adaptação de arquitetura/ativação. O projeto mantém álgebra NumPy, Softmax, entropia cruzada, `forward`, `loss`, `backpropagation` e `fit`, com ativação `tanh` e sua derivada analítica, comparada experimentalmente com sigmoide e leaky ReLU.
 
 Materiais indicados: [conceitos básicos](https://www.youtube.com/watch?v=ebToEXQFCo4&list=PLQH6T1jnIb5J7vugBAauJsFU8Qgvuf-4X) e [rede neural do zero em Python](https://www.youtube.com/watch?v=OGcOH9damt0&list=PLQH6T1jnIb5I1s7chxtL24ZuX4g-PA7uK).

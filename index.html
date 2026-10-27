@@ -333,7 +333,7 @@
           </div>
         </div>
         <div class="tech-kpi-grid">
-          <div class="tech-metric-box"><span>Arquitetura</span><strong id="tech-architecture">—</strong><small>NumPy · tanh · Softmax</small></div>
+          <div class="tech-metric-box"><span>Arquitetura</span><strong id="tech-architecture">—</strong><small id="tech-activation">NumPy · tanh · Softmax</small></div>
           <div class="tech-metric-box"><span>Queda do erro</span><strong id="tech-loss">—</strong><small id="tech-training">—</small></div>
           <div class="tech-metric-box"><span>Acurácia no teste</span><strong id="tech-acc">—</strong><small id="tech-prec-rec">—</small></div>
           <div class="tech-metric-box"><span>Matriz de confusão</span><strong id="tech-confusion">—</strong><small id="tech-confusion-fp">—</small></div>
@@ -366,7 +366,7 @@
             <div class="prob-bar-track"><div id="sim-prob-bar" class="prob-bar-fill"></div></div>
             <p id="sim-impact-preview" class="sim-impact-text"></p>
             <div class="neurons-wrap">
-              <span class="sim-small-label">Ativações ocultas <code>a1 = tanh(X·W1 + b1)</code></span>
+              <span class="sim-small-label">Ativações ocultas <code id="sim-activation-formula">a1 = tanh(X·W1 + b1)</code></span>
               <div id="neurons-grid" class="neurons-grid"></div>
             </div>
           </div>
@@ -384,8 +384,9 @@
           </figure>
           <div class="math-list">
             <div class="math-box"><strong>Normalização Z-Score</strong><code>X_norm = (X - mean) / (std + 1e-8)</code></div>
-            <div class="math-box"><strong>Ativação customizada (tanh)</strong><code>a1 = np.tanh(np.dot(X_norm, W1) + b1)</code></div>
-            <div class="math-box"><strong>Derivada no backpropagation</strong><code>delta1 = np.dot(delta2, W2.T) * (1 - a1**2)</code></div>
+            <div class="math-box"><strong id="math-activation-title">Ativação customizada (tanh)</strong><code id="math-activation">a1 = np.tanh(np.dot(X_norm, W1) + b1)</code></div>
+            <div class="math-box"><strong>Derivada no backpropagation</strong><code id="math-derivative">delta1 = np.dot(delta2, W2.T) * (1 - a1**2)</code></div>
+            <div class="math-box"><strong>Comparação de ativações (validação jan–mar)</strong><code id="math-activation-comparison">—</code></div>
           </div>
         </article>
       </div>

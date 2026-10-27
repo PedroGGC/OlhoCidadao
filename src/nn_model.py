@@ -17,7 +17,7 @@ class NnModel:
         self.n_hidden, self.n_output = n_hidden, 2
         self.input_neurons, self.hidden_neurons, self.output_neurons = self.n_input, n_hidden, 2
         self.lr, self.activation = lr, activation.lower()
-        if self.activation not in ('tanh', 'leaky_relu') or optimizer not in ('sgd', 'adam'):
+        if self.activation not in ('tanh', 'sigmoid', 'leaky_relu') or optimizer not in ('sgd', 'adam'):
             raise ValueError('Ativação ou otimizador inválido.')
         self.optimizer, self.weight_decay = optimizer, weight_decay
         rng = np.random.default_rng(seed)
@@ -33,10 +33,18 @@ class NnModel:
         self._adam_m, self._adam_v, self._step = {}, {}, 0
 
     def _activate_hidden(self, z):
-        return np.where(z > 0, z, .01*z) if self.activation == 'leaky_relu' else np.tanh(z)
+        if self.activation == 'leaky_relu':
+            return np.where(z > 0, z, .01*z)
+        if self.activation == 'sigmoid':
+            return np.exp(-np.logaddexp(0, -z))
+        return np.tanh(z)
 
     def _activate_hidden_derivative(self, a, z):
-        return np.where(z > 0, 1., .01) if self.activation == 'leaky_relu' else 1-a*a
+        if self.activation == 'leaky_relu':
+            return np.where(z > 0, 1., .01)
+        if self.activation == 'sigmoid':
+            return a*(1-a)
+        return 1-a*a
 
     @staticmethod
     def _softmax(z):
@@ -138,7 +146,7 @@ class NnModel:
             ax.xaxis.label.set_color('#c2cbd8')
             ax.grid(alpha=.15)
             ax.legend()
-        fig.suptitle(f'OlhoCidadão · NumPy {self.n_input} → {self.n_hidden} tanh → 2 · '
+        fig.suptitle(f'OlhoCidadão · NumPy {self.n_input} → {self.n_hidden} {self.activation} → 2 · '
                      f'parada na época {self.best_epoch}\nValidação temporal; teste final fora do treinamento', color='#e7ecf3')
         fig.tight_layout()
         fig.savefig(output_path, facecolor=fig.get_facecolor())

@@ -95,7 +95,7 @@ pnpm train
 pnpm dev:local
 ```
 
-O treino padrão usa os dados publicados em modo offline, com fit em até 5.000 notas e inferência na base integral. Para atualizar as fontes oficiais use `python main.py` após `pnpm setup`. A geração local é vista com `pnpm dev:local`; os comandos normais restauram o snapshot publicado, garantindo o mesmo resultado entre colaboradores.
+O treino padrão usa os dados publicados em modo offline, com fit em 25.278 notas balanceadas de 2025 e inferência na base integral. Leva cerca de 6 minutos em CPU, incluindo a comparação de ativações. Para atualizar as fontes oficiais use `python main.py` após `pnpm setup`. A geração local é vista com `pnpm dev:local`; os comandos normais restauram o snapshot publicado, garantindo o mesmo resultado entre colaboradores.
 
 Validação completa:
 
@@ -108,7 +108,7 @@ pnpm data:verify
 pnpm build
 ```
 
-Relatórios e casos de paridade são restaurados em `outputs/`. Gemini é opcional apenas para o texto complementar; nenhuma revisão humana participa da classificação ou avaliação.
+Relatórios e casos de paridade são restaurados em `outputs/`. Nenhum modelo de IA externo ou API de IA é usado: a classificação vem só da rede NumPy local e o relatório é montado por cálculo determinístico. Nenhuma revisão humana participa da classificação ou avaliação.
 
 ## Publicar novos dados (mantenedor)
 
