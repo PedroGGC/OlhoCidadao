@@ -392,7 +392,8 @@ tbody tr:hover td, tbody tr:hover th { background-color: var(--bg-subtle); }
 }
 .cell-forn { max-inline-size: 260px; }
 .cell-forn small { display: block; color: var(--text-muted); font-family: var(--font-mono); font-size: 0.72rem; }
-.diff-up { color: var(--rose); font-weight: 600; }
+.diff-alert { color: var(--rose); font-weight: 700; }
+.diff-up { color: var(--text-muted); font-weight: 500; }
 .diff-down { color: var(--emerald); font-weight: 600; }
 
 .badge-atipico, .badge-normal {
@@ -566,6 +567,7 @@ tbody tr:hover td, tbody tr:hover th { background-color: var(--bg-subtle); }
 .compare-fill.avg { background: var(--emerald); }
 .compare-fill.val { background: var(--primary); }
 .compare-fill.val.alert { background: var(--rose); }
+.compare-fill.threshold { background: var(--amber); }
 .dialog-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
 
 .help-body h3 { font-family: var(--font-display); font-size: 0.95rem; color: var(--text-main); }

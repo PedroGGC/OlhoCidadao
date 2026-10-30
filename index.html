@@ -149,7 +149,7 @@
             <select id="f-alerta">
               <option value="all">Todos os gastos</option>
               <option value="1">Somente com alerta</option>
-              <option value="0">Dentro da média</option>
+              <option value="0">Padrão esperado</option>
             </select>
           </div>
         </div>
@@ -204,7 +204,7 @@
               <p class="card-subtitle">Clique em um mês para filtrar</p>
             </div>
             <div class="chart-legend">
-              <span><span class="legend-dot dot-normal"></span>Dentro da média</span>
+              <span><span class="legend-dot dot-normal"></span>Padrão esperado</span>
               <span><span class="legend-dot dot-alert"></span>Com alerta</span>
             </div>
           </div>
@@ -263,8 +263,8 @@
                 <th scope="col">Despesa</th>
                 <th scope="col">Fornecedor</th>
                 <th scope="col" data-col="valorLiquido"><button type="button" class="th-sort" data-sort="valorLiquido">Valor</button></th>
-                <th scope="col" data-col="diffPct"><button type="button" class="th-sort" data-sort="diffPct">vs. média</button></th>
-                <th scope="col">Avaliação</th>
+                <th scope="col" data-col="diffPct"><button type="button" class="th-sort" data-sort="diffPct" title="Diferença percentual frente à média histórica da categoria">vs. média</button></th>
+                <th scope="col" title="Classificação da Rede Neural: Alerta (acima do limiar estatístico) ou Padrão esperado">Avaliação</th>
                 <th scope="col">Ações</th>
               </tr>
             </thead>

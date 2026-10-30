@@ -432,7 +432,7 @@ function scopeDescription(f) {
   if (f.ano !== 'all') parts.push(f.ano);
   if (f.categoria !== 'all') parts.push(f.categoria.toLowerCase());
   if (f.alerta === '1') parts.push('com alerta');
-  if (f.alerta === '0') parts.push('dentro da média');
+  if (f.alerta === '0') parts.push('padrão esperado');
   if (f.busca) parts.push(`"${f.busca}"`);
   return parts.length ? parts.join(' · ') : 'Visão geral · Câmara e Senado';
 }
@@ -450,7 +450,7 @@ function renderActiveChips(f) {
   if (f.ano !== 'all') add('ano', f.ano);
   if (f.mes !== 'all') add('mes', MESES_NOMES[Number(f.mes) - 1]);
   if (f.categoria !== 'all') add('categoria', f.categoria);
-  if (f.alerta !== 'all') add('alerta', f.alerta === '1' ? 'Com alerta' : 'Dentro da média');
+  if (f.alerta !== 'all') add('alerta', f.alerta === '1' ? 'Com alerta' : 'Padrão esperado');
 
   if (!chips.length) {
     bar.hidden = true;
@@ -887,8 +887,8 @@ function renderTable() {
     const cargo = r.cargo === 'SENADOR DA REPÚBLICA' ? 'Sen.' : 'Dep.';
     const badge = r.classePredita === 1
       ? `<span class="badge-atipico">Alerta · ${(r.probabilidadeAtipico * 100).toFixed(0)}%</span>`
-      : '<span class="badge-normal">Dentro da média</span>';
-    const diffCls = r.diffPct > 0 ? 'diff-up' : 'diff-down';
+      : '<span class="badge-normal">Padrão esperado</span>';
+    const diffCls = r.classePredita === 1 ? 'diff-alert' : (r.diffPct > 0 ? 'diff-up' : 'diff-down');
     const doc = r.urlDocumento && r.urlDocumento.startsWith('http')
       ? `<a href="${esc(r.urlDocumento)}" target="_blank" rel="noopener noreferrer" class="btn-mini" aria-label="Abrir nota oficial (nova aba)">Nota ↗</a>`
       : '';
@@ -961,6 +961,8 @@ function openDetail(idx) {
       <div class="compare-track"><div class="compare-fill val${isAlert ? ' alert' : ''}" style="inline-size:${(r.valorLiquido / ref) * 100}%"></div></div>
       <span>Média típica da categoria: <strong>${brl.format(r.mediaAceitavelCategoria)}</strong></span>
       <div class="compare-track"><div class="compare-fill avg" style="inline-size:${(r.mediaAceitavelCategoria / ref) * 100}%"></div></div>
+      <span>Limiar de alerta da IA (Média + 1,2σ): <strong>${brl.format(r.limiarCategoria)}</strong></span>
+      <div class="compare-track"><div class="compare-fill threshold" style="inline-size:${(r.limiarCategoria / ref) * 100}%"></div></div>
     </div>
     <div class="detail-explain ${isAlert ? 'alert' : 'ok'}">${explain}</div>
     <div class="dialog-actions">
