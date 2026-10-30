@@ -1,7 +1,7 @@
 /** Uma entrada para instalação, sync, execução e publicação do projeto. */
 import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { ensureData, ROOT } from './dataset-sync.mjs';
@@ -97,6 +97,14 @@ try {
     run(process.execPath, [path.join(ROOT, 'node_modules/vite/bin/vite.js'),
       ...(command === 'dev' || command === 'dev:local' ? [] : [command]), ...args],
       { env: { ...process.env, OLHO_DATA_MODE: command === 'dev:local' ? 'local' : 'snapshot' } });
+    if (command === 'build') {
+      const uncompressed = path.join(ROOT, 'dist', 'data', 'dashboard_data.json');
+      const compressed = path.join(ROOT, 'dist', 'data', 'dashboard_data.json.gz');
+      if (existsSync(uncompressed) && existsSync(compressed)) {
+        await rm(uncompressed, { force: true });
+        notice('Otimizado para hospedagem estática/Vercel: dist/data/dashboard_data.json (>100MB) removido em favor do .gz (26MB).');
+      }
+    }
   } else if (command === 'train') {
     await ensureData({ profile: 'full', log: notice });
     run(process.env.PYTHON || 'python', ['main.py', ...(args.length ? args : ['--offline'])]);
