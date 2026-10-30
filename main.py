@@ -67,6 +67,7 @@ def export_web_dashboard_payload(
     df_all: pd.DataFrame,
     metadata: dict,
     metrics: dict,
+    learning_curve: list = None,
 ) -> str:
     """
     Exporta os dados auditados (Deputados Federais e Senadores), séries mensais/anuais,
@@ -121,7 +122,7 @@ def export_web_dashboard_payload(
             "acc": round(float(nn.accuracy_history[i] * 100.0), 2),
         }
         for i in range(0, len(nn.loss_history), step)
-    ]
+    ] if learning_curve is None else learning_curve
 
     obras_projetos = []
     if os.path.exists(OBRAS_PROJETOS_CSV_PATH):

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from main import balanced_training_indices
-from src.bulk_data import CAMARA_COLUMNS, money, parse_camara, parse_senado
+from src.bulk_data import CAMARA_COLUMNS, money, notes_absent_from, parse_camara, parse_senado
 from src.nn_model import NnModel
 
 
@@ -63,6 +63,13 @@ class OfficialDataTests(unittest.TestCase):
         self.assertFalse(set(indices) & set(holdout))
         self.assertEqual(df.loc[indices].target.value_counts().to_dict(), {0: 2500, 1: 2500})
         self.assertEqual(len(df.loc[indices].groupby(['target', 'siglaUF', 'cargoPublico', 'ano'])), 24)
+
+    def test_new_notes_are_detected_as_a_multiset(self):
+        row = {'origemDado': 'C', 'idDeputado': 1, 'numDocumento': '0001', 'dataDocumento': 'd',
+               'tipoDespesa': 'X', 'cnpjCpfFornecedor': '1', 'ano': 2026, 'mes': 9, 'valorLiquido': 10.5}
+        previous = pd.DataFrame([row, dict(row, mes=8)])
+        current = pd.DataFrame([dict(row, mes=8), row, row, dict(row, valorLiquido=11.)])
+        np.testing.assert_array_equal(notes_absent_from(previous, current), [False, False, True, True])
 
     def test_inference_covers_more_rows_than_fit(self):
         model = NnModel(np.zeros((4, 5)), np.array([0, 1, 0, 1]))

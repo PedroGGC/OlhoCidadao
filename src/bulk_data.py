@@ -20,6 +20,18 @@ SENADO_COLUMNS = ['id', 'tipoDocumento', 'ano', 'mes', 'codSenador', 'nomeSenado
                   'detalhamento', 'valorReembolsado', 'siglaUF', 'siglaPartido']
 
 
+NOTE_KEY = ['origemDado', 'idDeputado', 'numDocumento', 'dataDocumento', 'tipoDespesa',
+            'cnpjCpfFornecedor', 'ano', 'mes', 'valorLiquido']
+
+
+def notes_absent_from(previous, current, key=NOTE_KEY):
+    """Marca notas de `current` sem par em `previous`; repetições contam como multiconjunto."""
+    def occurrences(frame):
+        frame = frame[key].astype(str)
+        return pd.MultiIndex.from_frame(frame.assign(_n=frame.groupby(key).cumcount().astype(str)))
+    return ~occurrences(current).isin(occurrences(previous))
+
+
 def save_csv(frame, path):
     """Publica somente arquivos completos, inclusive ao substituir dados em uso."""
     frame.to_csv(path + '.tmp', index=False, encoding='utf-8')
@@ -53,7 +65,8 @@ def publish_file(temporary, destination):
 def get(url, accept="*/*"):
     with requests.Session() as session:
         session.mount('https://', HTTPAdapter(max_retries=Retry(
-            total=3, backoff_factor=1, status_forcelist=[429, 500, 502, 503, 504])))
+            # A API do Senado limita taxa (429); esperas de até ~2,5 min respeitam o Retry-After.
+            total=6, backoff_factor=5, status_forcelist=[429, 500, 502, 503, 504])))
         response = session.get(url, timeout=(20, 180), headers={'Accept': accept})
         response.raise_for_status()
         return response

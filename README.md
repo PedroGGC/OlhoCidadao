@@ -37,7 +37,7 @@ Essa instalação executa automaticamente a preparação da versão de dados fix
 4. Restaura os CSVs em `data/`, o dashboard em `public/data/` e os relatórios em `outputs/`.
 5. Ativa a preparação automática após futuras atualizações do Git, quando não houver hooks personalizados.
 
-Na primeira instalação são cerca de **87 MB de download de dados**, além das dependências do site. A base contém **328.706 notas**, sem amostragem no portal. Com dados íntegros, as próximas preparações reutilizam os arquivos e o cache, sem baixar novamente os pacotes.
+Na primeira instalação são cerca de **87 MB de download de dados**, além das dependências do site. A base contém **357.850 notas** (coleta de 28/10/2026), sem amostragem no portal. Com dados íntegros, as próximas preparações reutilizam os arquivos e o cache, sem baixar novamente os pacotes.
 
 ### 4. Iniciar e abrir o site
 
@@ -96,6 +96,8 @@ pnpm dev:local
 ```
 
 O treino padrão usa os dados publicados em modo offline, com fit em 25.278 notas balanceadas de 2025 e inferência na base integral. Leva cerca de 6 minutos em CPU, incluindo a comparação de ativações. Para atualizar as fontes oficiais use `python main.py` após `pnpm setup`. A geração local é vista com `pnpm dev:local`; os comandos normais restauram o snapshot publicado, garantindo o mesmo resultado entre colaboradores.
+
+Para baixar as fontes oficiais de novo e aplicar o modelo congelado sem retreinar, avaliando à parte as notas que surgiram depois do treino, use `python scripts/evaluate_new_notes.py`. Resultado e limites: [notas publicadas depois do treino](docs/METODOLOGIA.md#notas-publicadas-depois-do-treino-coleta-de-28102026).
 
 Validação completa:
 

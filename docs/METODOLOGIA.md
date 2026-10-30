@@ -87,6 +87,34 @@ Categorias inéditas usam a referência global histórica e uma entrada desconhe
 
 O limite histórico de 2025 permanece congelado. Repetir a mesma execução verifica reprodutibilidade, não cria um novo teste independente.
 
+## Notas publicadas depois do treino (coleta de 28/10/2026)
+
+O modelo do protocolo 3 foi congelado sobre a coleta de 22/10/2026. Em 28/10 as fontes oficiais foram baixadas de novo e o modelo foi aplicado **sem retreinar**: pesos, normalização, calibração, limiar e gabarito (limiares de 2025) ficaram iguais. `python scripts/evaluate_new_notes.py` reproduz o processo; com `--offline`, reaplica sobre os arquivos locais.
+
+Cada nota recebe a coluna `coletaPosterior`: 0 = idêntica à da coleta do treino, 1 = nova, 2 = mesma nota republicada pela fonte com outra categoria ou valor.
+
+| Grupo | Notas | Observação |
+| --- | ---: | --- |
+| Novas em categorias conhecidas | 2.115 | 2.008 da Câmara e 107 do Senado; 1.631 de ago–out/2026, lançamentos atrasados |
+| Nova categoria da Câmara: `PASSAGEM AÉREA - SIGEPA` | 29.952 | Toda em jan–jul/2025; categoria que a rede nunca viu |
+| Revisadas pela fonte | 2.018 | 2.017 notas do Senado de um mesmo fornecedor movidas de "consultorias" para "passagens aéreas"; 1 valor corrigido |
+| Removidas | 1 | |
+
+**Resultado nas 2.115 notas novas de categorias conhecidas** — dados que nenhuma etapa de treino, seleção, calibração ou limiar conheceu:
+
+| Métrica | Valor |
+| --- | ---: |
+| Atípicas pelo gabarito | 202 |
+| Verdadeiros positivos / negativos | 202 / 1.913 |
+| Falsos positivos / negativos | **0 / 0** |
+| Precisão, recall e F1 | 100% |
+
+Zero erros em 2.115 notas é compatível com a taxa do teste (13 erros em 35.922, cerca de 0,04%): a expectativa seria menos de um erro. O intervalo de Wilson de 95% para o recall nos 202 positivos vai de cerca de 98,1% a 100%, então o resultado confirma o teste temporal, mas não prova exatidão perfeita.
+
+**Categoria inédita (SIGEPA).** A rede recebe a posição "categoria desconhecida" e a referência global. Para comparar, o gabarito usa a mesma regra do projeto calculada só com essa categoria (limiar de R$ 2.138,11). Resultado: recall de 100% (3.505 de 3.505), mas **1.098 falsos positivos** (precisão de 76,15%). É o limite esperado de um modelo que aprendeu degraus por categoria: sem exemplos da categoria, ele não sabe onde fica o degrau dela. Essas notas ficam fora das métricas principais e aparecem como alertas no painel. Incluir a SIGEPA no treino exige um novo protocolo com período de teste novo.
+
+**Teste original.** As 35.683 notas de jul–out que continuam idênticas mantêm o resultado do protocolo 3 (12 falsos positivos e 1 falso negativo). As outras 239 notas do teste foram revisadas pela fonte.
+
 ## Reproduzir e conferir
 
 ```sh
@@ -98,14 +126,14 @@ python scripts/validate_dataset.py --check
 pnpm build
 ```
 
-`validate_model.py` reconcilia todas as 325.784 inferências e as métricas do teste com os pesos exportados. Os testes JavaScript comparam o mesmo contrato em notas, extremos e valores próximos à fronteira, com tolerância de 1e-10. Os nomes dos CSVs permanecem iguais. A base integral continua disponível no dashboard; apenas o fit usa a amostra balanceada de 25.278 notas de 2025.
+`validate_model.py` reconcilia todas as 357.850 inferências, o teste original nas notas não revisadas e as notas novas com os pesos exportados. Os testes JavaScript comparam o mesmo contrato em notas, extremos e valores próximos à fronteira, com tolerância de 1e-10. Os nomes dos CSVs permanecem iguais. A base integral continua disponível no dashboard; apenas o fit usa a amostra balanceada de 25.278 notas de 2025.
 
 Referências metodológicas: [separação temporal](https://scikit-learn.org/stable/modules/generated/sklearn.model_selection.TimeSeriesSplit.html) e [calibração de probabilidades](https://scikit-learn.org/stable/modules/calibration.html). As implementações deste projeto usam NumPy, não scikit-learn.
 
 
 ## Fontes e cobertura dos dados
 
-A coleta de despesas utilizada neste snapshot é de 22/10/2026. Inclui 286.252 lançamentos da Câmara e 39.532 do Senado: **325.784 despesas positivas**, **R$ 418.329.396,80** e 27 UFs. O ano de 2026 é parcial. Esses valores não são o saldo líquido após estornos; não há multiplicação ou reponderação de notas.
+A coleta de despesas utilizada neste snapshot é de 28/10/2026; o modelo foi treinado com a de 22/10/2026 (325.784 notas). Inclui 318.211 lançamentos da Câmara e 39.639 do Senado: **357.850 despesas positivas**, **R$ 455.818.617,49** e 27 UFs. O ano de 2026 é parcial. Esses valores não são o saldo líquido após estornos; não há multiplicação ou reponderação de notas.
 
 - Câmara: dumps oficiais [2025](https://www.camara.leg.br/cotas/Ano-2025.csv.zip) e [2026](https://www.camara.leg.br/cotas/Ano-2026.csv.zip), abertos em memória, UTF-8 e separador `;`.
 - Senado: consolidados CEAPS [2025](https://www.senado.leg.br/transparencia/LAI/verba/despesa_ceaps_2025.csv) e [2026](https://www.senado.leg.br/transparencia/LAI/verba/despesa_ceaps_2026.csv), Latin-1 e preâmbulo de atualização ignorado.
@@ -113,7 +141,7 @@ A coleta de despesas utilizada neste snapshot é de 22/10/2026. Inclui 286.252 l
 - Entram valores positivos identificados com UF válida. Lideranças da Câmara sem UF e estornos negativos ficam fora. Um documento pode ter lançamentos distintos, portanto o número da nota isolado não é usado para eliminar registros.
 - CNPJ/CPF e número documental são texto. Datas inválidas publicadas são preservadas; a competência oficial de ano/mês determina as partições.
 
-Maranhão: 3.784 notas/R$ 9.679.640,60 em 2025 e 2.153 notas/R$ 5.651.857,01 em 2026. O relatório `outputs/data_quality_report.json`, fornecido pelo snapshot, concilia valores em centavos e hashes das fontes, CSVs e payload.
+Maranhão: 4.745 notas/R$ 10.923.528,61 em 2025 e 2.208 notas/R$ 5.785.332,25 em 2026. O relatório `outputs/data_quality_report.json`, fornecido pelo snapshot, concilia valores em centavos e hashes das fontes, CSVs e payload.
 
 ## Obras e municípios
 
