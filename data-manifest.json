@@ -1,44 +1,44 @@
 {
   "schemaVersion": 1,
-  "snapshot": "data-054004972168a292",
-  "createdAtUTC": "2026-10-30T03:02:55.207604+00:00",
-  "sourceCommit": "72870eaa033f5449410cbaa0ced54604561e98de",
+  "snapshot": "data-aee01657a2aec1f6",
+  "createdAtUTC": "2026-10-30T11:49:59.378361+00:00",
+  "sourceCommit": "e14f48a0c524e72c487efada3c34c8aac52c61f1",
   "files": [
     {
       "path": "public/data/dashboard_data.json.gz",
       "profile": "web",
-      "bytes": 27550693,
-      "sha256": "d4254add38b1c6457c14aed08cd86778a59d7cfc837abe65719c2bdb0110e438"
+      "bytes": 27536252,
+      "sha256": "9aaaf6529e888920bb25dae023fb21104bb9ded621040ed857bab1cc51d6ad5b"
     },
     {
       "path": "public/data/resumo_geral.json",
       "profile": "web",
-      "bytes": 9552,
-      "sha256": "703a791eb241781eca858ee63e76a91e9400e720da6d35a20f663c4820559c51"
+      "bytes": 9550,
+      "sha256": "79d76ccc784debb997d9a770fe8a68e3013396da6342abc5852c726b9eb7385a"
     },
     {
       "path": "public/data/loss_curve.png",
       "profile": "web",
-      "bytes": 103721,
-      "sha256": "a1962dd3b325ffeed3ad54f509328f46ef9300ddbf4d2b01d47ae3c2c452a7b3"
+      "bytes": 96299,
+      "sha256": "f4abe0af58c1fd555ab33af6b62d0be2cba9978117e108cfbe88f8908fe7ad3e"
     },
     {
       "path": "outputs/model_evaluation.json",
       "profile": "web",
-      "bytes": 99911,
-      "sha256": "dffd01af989fb0965f1887e1c6901bcd62c97c49fcda594b033ff7109a560940"
+      "bytes": 104657,
+      "sha256": "c239f7bfe0bd72b804ed7ec4dddb1b6017320f37e64955ae10f5c8d2bb0669e2"
     },
     {
       "path": "outputs/model_parity.json",
       "profile": "web",
-      "bytes": 66625,
-      "sha256": "cd69f3c6add4eb184e406e1c91aaff47e875fe777b32b79756c69e2c25106d17"
+      "bytes": 50981,
+      "sha256": "f04a1de1e8bd65c1cb0cb812902df1d5a109cd01ac2e3788201765ee566b5b7f"
     },
     {
       "path": "outputs/data_quality_report.json",
       "profile": "web",
-      "bytes": 7515,
-      "sha256": "368735e79603d473fbb449221421a1766bf63f9618835fbcffc80074960a0eb8"
+      "bytes": 7516,
+      "sha256": "62e9b353f4ce1d220943bcb222b455dd183e67d7d78bdc8e0a2b574c171fbba1"
     },
     {
       "path": "outputs/obrasgov_quality_report.json",
@@ -49,8 +49,8 @@
     {
       "path": "outputs/relatorio_auditoria.md",
       "profile": "web",
-      "bytes": 16432,
-      "sha256": "dddc1ffd961af88a1631f2dea5efac209fa77da5d524e240f33d6d58ac08f55b"
+      "bytes": 16410,
+      "sha256": "31b2171babb1edf161217eebc3a2ebc21ed70fa2e48b4b213ed1eaba0ccf9b35"
     },
     {
       "path": "data/cota_parlamentar_camara_completa.csv",
@@ -109,8 +109,8 @@
     {
       "path": "data/processed_dataset.csv",
       "profile": "research",
-      "bytes": 126734046,
-      "sha256": "4702ace683a3cf1f2260347c73159e7d31ed24518f8955f21c01556903049652"
+      "bytes": 127394212,
+      "sha256": "dd5328d178d31c67b778cc343af662a1fe4f617a4d7ce73afdd8c6f89e80a8be"
     },
     {
       "path": "data/raw_despesas_camara.csv",
@@ -127,8 +127,8 @@
     {
       "path": "public/data/dashboard_data.json",
       "profile": "web",
-      "bytes": 212767281,
-      "sha256": "fe278f3a0d85b32e9d13f87dea9d2aeff14e0b418f813ea273cca3c41c6cde69",
+      "bytes": 212748193,
+      "sha256": "7bc2f1be97ea4a746c7c4923d7f253071d944ddb87d3d5ae0cdb425b8fd9ed2b",
       "gunzipFrom": "public/data/dashboard_data.json.gz"
     }
   ],
@@ -145,9 +145,9 @@
         "outputs/obrasgov_quality_report.json",
         "outputs/relatorio_auditoria.md"
       ],
-      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-054004972168a292/web.tar.gz",
-      "bytes": 27688431,
-      "sha256": "ce023d5d2eef29d26a38861160a3526fdce1524d41642ef8075fcf60806c90d8"
+      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-aee01657a2aec1f6/web.tar.gz",
+      "bytes": 27659230,
+      "sha256": "7256da554721c7bde4f04765660735131d7322bd61e936afb4ffa344fcb2eddf"
     },
     {
       "profile": "research",
@@ -165,9 +165,9 @@
         "data/raw_despesas_camara.csv",
         "data/senadores_federais_completo.csv"
       ],
-      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-054004972168a292/research.tar.gz",
-      "bytes": 59822590,
-      "sha256": "5612abd269514afb863168cde1dcf9ce6e5a5185d4abd417971718bee1ffdb6a"
+      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-aee01657a2aec1f6/research.tar.gz",
+      "bytes": 59785053,
+      "sha256": "6c595feb03ce0b05283d05c3bab85d57487f854cfe1400bae07694cbc2a7c51e"
     }
   ],
   "records": 328706
