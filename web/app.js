@@ -1086,12 +1086,14 @@ function setupTechnicalTab(data) {
     const test = evaluation.test;
     const baseline = evaluation.baselineSameTemporalTest;
     $('tech-protocol').textContent = `${intFmt.format(test.records)} notas no teste de jul–out/2026, reservado até a escolha final. Treino: 2025; validação: jan–mar; calibração: abr–mai; limiar: jun/2026.`;
+    const later = evaluation.newNotesAfterSnapshot?.metrics;
+    if (later) $('tech-protocol').textContent += ` Notas publicadas depois do treino, sem retreinar: ${intFmt.format(later.records)} notas, ${later.confusionMatrix.fp} falso(s) positivo(s) e ${later.confusionMatrix.fn} falso(s) negativo(s).`;
     $('tech-comparison').textContent = `Comparação no mesmo teste: precisão ${(baseline.precision * 100).toFixed(2)}% → ${(test.precision * 100).toFixed(2)}%; F1 ${(baseline.f1 * 100).toFixed(2)}% → ${(test.f1 * 100).toFixed(2)}%. Falsos positivos: ${intFmt.format(baseline.confusionMatrix.fp)} → ${intFmt.format(test.confusionMatrix.fp)}.`;
     $('tech-calibration').textContent = `Brier: ${test.brier.toFixed(4)} · Erro de calibração (ECE): ${(test.ece * 100).toFixed(2)} p.p. · Limiar automático: ${(evaluation.decisionThreshold * 100).toFixed(2)}%. Score referente ao alvo estatístico, não à probabilidade de corrupção.`;
   }
   $('tech-loss').textContent = `${m.lossInitial.toFixed(4)} → ${m.lossFinal.toFixed(4)}`;
   $('tech-acc').textContent = `${m.testAccuracy.toFixed(2)}%`;
-  $('tech-prec-rec').textContent = `Precisão ${m.precision.toFixed(1)}% · Recall ${m.recall.toFixed(1)}%`;
+  $('tech-prec-rec').textContent = `Precisão ${m.precision.toFixed(2)}% · Recall ${m.recall.toFixed(2)}%`;
   $('tech-confusion').textContent = `VP ${m.confusionMatrix.vp} · VN ${m.confusionMatrix.vn}`;
   $('tech-confusion-fp').textContent = `FP ${m.confusionMatrix.fp} · FN ${m.confusionMatrix.fn}`;
 
