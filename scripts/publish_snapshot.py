@@ -6,6 +6,7 @@ import json
 import subprocess
 import sys
 import tarfile
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -26,17 +27,36 @@ WEB_FILES = ['public/data/dashboard_data.json.gz', 'public/data/resumo_geral.jso
 
 
 def run(*args):
-    subprocess.run(args, cwd=ROOT, check=True)
+    for attempt in range(4):
+        try:
+            subprocess.run(args, cwd=ROOT, check=True)
+            return
+        except subprocess.CalledProcessError:
+            if attempt == 3:
+                raise
+            time.sleep(2 * (attempt + 1))
 
 
 def capture(*args):
-    return subprocess.check_output(args, cwd=ROOT, text=True, encoding='utf-8').strip()
+    for attempt in range(4):
+        try:
+            return subprocess.check_output(args, cwd=ROOT, text=True, encoding='utf-8').strip()
+        except subprocess.CalledProcessError:
+            if attempt == 3:
+                raise
+            time.sleep(2 * (attempt + 1))
 
 
-def find_release(tag):
+def find_release(tag, attempts=5, delay=2):
     # Drafts ainda não possuem tag publicada e não aparecem em /releases/tags/{tag}.
-    pages = json.loads(capture('gh', 'api', '--paginate', '--slurp', f'repos/{REPO}/releases?per_page=100'))
-    return next((release for page in pages for release in page if release['tag_name'] == tag), None)
+    for attempt in range(attempts):
+        pages = json.loads(capture('gh', 'api', '--paginate', '--slurp', f'repos/{REPO}/releases?per_page=100'))
+        found = next((release for page in pages for release in page if release['tag_name'] == tag), None)
+        if found:
+            return found
+        if attempt < attempts - 1:
+            time.sleep(delay)
+    return None
 
 
 def checksum(filename):

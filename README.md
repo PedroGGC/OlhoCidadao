@@ -37,7 +37,7 @@ Essa instalação executa automaticamente a preparação da versão de dados fix
 4. Restaura os CSVs em `data/`, o dashboard em `public/data/` e os relatórios em `outputs/`.
 5. Ativa a preparação automática após futuras atualizações do Git, quando não houver hooks personalizados.
 
-Na primeira instalação são cerca de **87 MB de download de dados**, além das dependências do site. A base contém **325.784 notas**, sem amostragem no portal. Com dados íntegros, as próximas preparações reutilizam os arquivos e o cache, sem baixar novamente os pacotes.
+Na primeira instalação são cerca de **87 MB de download de dados**, além das dependências do site. A base contém **328.706 notas**, sem amostragem no portal. Com dados íntegros, as próximas preparações reutilizam os arquivos e o cache, sem baixar novamente os pacotes.
 
 ### 4. Iniciar e abrir o site
 

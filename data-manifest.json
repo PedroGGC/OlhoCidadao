@@ -1,45 +1,44 @@
 {
   "schemaVersion": 1,
-  "snapshot": "data-47db2cf5cb3f1cb9",
-  "createdAtUTC": "2026-10-27T17:59:39.633134+00:00",
-  "sourceCommit": "45d06f58fd45a5662952503caa7525d3b30d3430",
-  "records": 325784,
+  "snapshot": "data-054004972168a292",
+  "createdAtUTC": "2026-10-30T03:02:55.207604+00:00",
+  "sourceCommit": "72870eaa033f5449410cbaa0ced54604561e98de",
   "files": [
     {
       "path": "public/data/dashboard_data.json.gz",
       "profile": "web",
-      "bytes": 27472048,
-      "sha256": "4d62c406146db383739c13d6bb5f9fc9cd76e9f167c54b100d7b109914a906df"
+      "bytes": 27550693,
+      "sha256": "d4254add38b1c6457c14aed08cd86778a59d7cfc837abe65719c2bdb0110e438"
     },
     {
       "path": "public/data/resumo_geral.json",
       "profile": "web",
-      "bytes": 9531,
-      "sha256": "6cc3dd8491e119044b5a2d8cbe2db487f29374f26e34e03d74b360e1776ec71d"
+      "bytes": 9552,
+      "sha256": "703a791eb241781eca858ee63e76a91e9400e720da6d35a20f663c4820559c51"
     },
     {
       "path": "public/data/loss_curve.png",
       "profile": "web",
-      "bytes": 93457,
-      "sha256": "1d560e9e33cba940165b97ef684502c7c7e74a0a1d565b09e89225c62d455048"
+      "bytes": 103721,
+      "sha256": "a1962dd3b325ffeed3ad54f509328f46ef9300ddbf4d2b01d47ae3c2c452a7b3"
     },
     {
       "path": "outputs/model_evaluation.json",
       "profile": "web",
-      "bytes": 91880,
-      "sha256": "ab56114cb03a1252824ed65f28ce9ee4f8659046f9dd37ba44835f8e7e7f3377"
+      "bytes": 99911,
+      "sha256": "dffd01af989fb0965f1887e1c6901bcd62c97c49fcda594b033ff7109a560940"
     },
     {
       "path": "outputs/model_parity.json",
       "profile": "web",
-      "bytes": 51253,
-      "sha256": "5fdd5f9497f331e61c496b2ec591740198863e8942c6f1d22587101cc8c53bb3"
+      "bytes": 66625,
+      "sha256": "cd69f3c6add4eb184e406e1c91aaff47e875fe777b32b79756c69e2c25106d17"
     },
     {
       "path": "outputs/data_quality_report.json",
       "profile": "web",
-      "bytes": 7511,
-      "sha256": "f22465e5f69c9830e62026964a314704f64eae534795bc5a170ccda2570aa021"
+      "bytes": 7515,
+      "sha256": "368735e79603d473fbb449221421a1766bf63f9618835fbcffc80074960a0eb8"
     },
     {
       "path": "outputs/obrasgov_quality_report.json",
@@ -50,20 +49,20 @@
     {
       "path": "outputs/relatorio_auditoria.md",
       "profile": "web",
-      "bytes": 16423,
-      "sha256": "71ae39320ef509843d1aed87dbf44211e67eeaf87d526183f7753e0148984508"
+      "bytes": 16432,
+      "sha256": "dddc1ffd961af88a1631f2dea5efac209fa77da5d524e240f33d6d58ac08f55b"
     },
     {
       "path": "data/cota_parlamentar_camara_completa.csv",
       "profile": "research",
-      "bytes": 69521732,
-      "sha256": "cc85ba57ad305735dfb22f220624be57d4267464203dc4dde392dda4472136d5"
+      "bytes": 70153508,
+      "sha256": "99bb93809b47e56dc0a2050359157074348b59ce8236bdc5ea875311e182f722"
     },
     {
       "path": "data/deputados_federais_camara.csv",
       "profile": "research",
-      "bytes": 125191,
-      "sha256": "de5095b98f7c17c30bd90d50251145e48a85967b0affd6818af13edef7b63d91"
+      "bytes": 125185,
+      "sha256": "2659b56ac67f306af86ac0df95000447cbf53fd820d1605d85bc6a99fbfbdbfa"
     },
     {
       "path": "data/deputados_historico_completo_camara.csv",
@@ -74,8 +73,8 @@
     {
       "path": "data/despesas_senadores_ceaps_completo.csv",
       "profile": "research",
-      "bytes": 9676163,
-      "sha256": "200e330f959734cd761fc8e4eaf83c341998edb703069b8a02d349fad29916a6"
+      "bytes": 9526127,
+      "sha256": "409b105c07ec06b835f1006aa77cbdce22acbaf656f31391b4e980fcfea2e237"
     },
     {
       "path": "data/estados_ibge_oficial.csv",
@@ -110,14 +109,14 @@
     {
       "path": "data/processed_dataset.csv",
       "profile": "research",
-      "bytes": 125782637,
-      "sha256": "25268260fb4626d7ecfe60932e1f9e52c375f963380c98f9b8fd90ce3ef1af7b"
+      "bytes": 126734046,
+      "sha256": "4702ace683a3cf1f2260347c73159e7d31ed24518f8955f21c01556903049652"
     },
     {
       "path": "data/raw_despesas_camara.csv",
       "profile": "research",
-      "bytes": 99388676,
-      "sha256": "4bb70263170824ef8ab56771f502167a02cdbc8acd94436e52cac8c4e9384f4f"
+      "bytes": 100053600,
+      "sha256": "be962f5b30e9383ad0a4564d6aef727ef49e935b52a601203e4390ee5d1f1322"
     },
     {
       "path": "data/senadores_federais_completo.csv",
@@ -128,8 +127,8 @@
     {
       "path": "public/data/dashboard_data.json",
       "profile": "web",
-      "bytes": 212419453,
-      "sha256": "2ccb3229787ab8ff50827a119fbf1910cb6098de30e76c14c8301737e463cbf8",
+      "bytes": 212767281,
+      "sha256": "fe278f3a0d85b32e9d13f87dea9d2aeff14e0b418f813ea273cca3c41c6cde69",
       "gunzipFrom": "public/data/dashboard_data.json.gz"
     }
   ],
@@ -146,9 +145,9 @@
         "outputs/obrasgov_quality_report.json",
         "outputs/relatorio_auditoria.md"
       ],
-      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-47db2cf5cb3f1cb9/web.tar.gz",
-      "bytes": 27589572,
-      "sha256": "6b5ea9c4d749c5790472b2837e35b979a1c504dffb4c6b87e4c55195d5bc2f75"
+      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-054004972168a292/web.tar.gz",
+      "bytes": 27688431,
+      "sha256": "ce023d5d2eef29d26a38861160a3526fdce1524d41642ef8075fcf60806c90d8"
     },
     {
       "profile": "research",
@@ -166,9 +165,10 @@
         "data/raw_despesas_camara.csv",
         "data/senadores_federais_completo.csv"
       ],
-      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-47db2cf5cb3f1cb9/research.tar.gz",
-      "bytes": 59391025,
-      "sha256": "bd35852f9152754aa5de1aea333173400db40ce1819b73ebb385975e158ab10c"
+      "url": "https://github.com/PedroGGC/OlhoCidadao/releases/download/data-054004972168a292/research.tar.gz",
+      "bytes": 59822590,
+      "sha256": "5612abd269514afb863168cde1dcf9ce6e5a5185d4abd417971718bee1ffdb6a"
     }
-  ]
+  ],
+  "records": 328706
 }
